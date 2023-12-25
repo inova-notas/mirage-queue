@@ -1,6 +1,6 @@
-namespace Mirage.Messages;
+namespace MirageQueue.Messages.Entities;
 
-public class OutBoundMessage
+internal class OutboundMessage
 {
     public required OutBoundMessageStatus Status { get; set; }
     public required string ConsumerEndpoint { get; set; }

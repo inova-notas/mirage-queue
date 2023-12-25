@@ -1,6 +1,6 @@
-namespace Mirage.Messages;
+namespace MirageQueue.Messages.Entities;
 
-public abstract class BaseMessage
+internal abstract class BaseMessage
 {
     public required Guid Id { get; set; }
     public required string Content { get; set; }
