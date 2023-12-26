@@ -45,7 +45,13 @@ internal class Dispatcher(IServiceProvider serviceProvider,
     internal void AddDispatchConsumer(Type consumerType)
     {
         Consumers ??= [];
+        
+        var consumerEndpoint = consumerType.FullName!;
 
+        if (Consumers.Any(x => x.ConsumerEndpoint == consumerEndpoint))
+            throw new ArgumentException($"Consumer with endpoint {consumerEndpoint} already registered",
+                nameof(consumerType));
+        
         var interfaces = consumerType.GetInterfaces();
         
         if(interfaces.All(x => x.GetGenericTypeDefinition() != typeof(IConsumer<>)))
@@ -57,7 +63,7 @@ internal class Dispatcher(IServiceProvider serviceProvider,
             .First();
 
         var messageContract = messageType.FullName!;
-        var consumerEndpoint = consumerType.FullName!;
+        
         
         var consumer = new DispatcherConsumer
         {
