@@ -1,7 +1,7 @@
 namespace MirageQueue.Messages.Entities;
 
-internal class InboundMessage
+internal class InboundMessage : BaseMessage
 {
     public required InboundMessageStatus Status { get; set; }
-    public required string MessageContract { get; set; }
+    
 }

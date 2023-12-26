@@ -1,6 +1,12 @@
 ﻿namespace MirageQueue.Consumers.Abstractions;
 
-internal interface IConsumer
+public interface IConsumer<in TMessage> : IConsumer
+    where TMessage : class
+{
+    Task Process(TMessage message);
+}
+
+public interface IConsumer
 {
     
 }
