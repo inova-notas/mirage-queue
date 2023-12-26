@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using MirageQueue.Workers;
 
 namespace MirageQueue;
 
@@ -11,5 +12,9 @@ public static class MirageQueueExtensions
     public static void AddMirageQueue(this IServiceCollection services, Action<MirageQueueConfiguration> options)
     {
         options.Invoke(Configuration);
+        services.AddSingleton(Configuration);
+
+        services.AddHostedService<InboundMessageHandlerWorker>();
+        services.AddHostedService<OutboundMessageHandlerWorker>();
     }
 }

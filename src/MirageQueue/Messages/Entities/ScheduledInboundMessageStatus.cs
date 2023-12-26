@@ -1,6 +1,6 @@
 ﻿namespace MirageQueue.Messages.Entities;
 
-internal enum ScheduledInboundMessageStatus
+public enum ScheduledInboundMessageStatus
 {
     WaitingScheduledTime,
     Queued

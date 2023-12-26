@@ -1,6 +1,6 @@
 namespace MirageQueue.Messages.Entities;
 
-internal enum InboundMessageStatus
+public enum InboundMessageStatus
 {
     New,
     Queued

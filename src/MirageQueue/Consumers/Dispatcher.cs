@@ -6,12 +6,12 @@ using MirageQueue.Messages.Entities;
 
 namespace MirageQueue.Consumers;
 
-internal class Dispatcher(IServiceProvider serviceProvider,
+public class Dispatcher(IServiceProvider serviceProvider,
     ILogger<Dispatcher> logger)
 {
-    private List<DispatcherConsumer>? Consumers { get; set; }
-    
-    internal async Task ProcessOutboundMessage(OutboundMessage outboundMessage)
+    public List<DispatcherConsumer> Consumers { get; } = [];
+
+    public async Task ProcessOutboundMessage(OutboundMessage outboundMessage)
     {
         var consumer = Consumers?.FirstOrDefault(x => x.ConsumerEndpoint == outboundMessage.ConsumerEndpoint);
         if (consumer is null)
@@ -19,33 +19,19 @@ internal class Dispatcher(IServiceProvider serviceProvider,
             logger.LogWarning("No consumers found for endpoint {ConsumerEndpoint}", outboundMessage.ConsumerEndpoint);
             return;
         }
-
-        var consumerInstance = serviceProvider.GetRequiredService(consumer.ConsumerType);
+        
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var consumerInstance = scope.ServiceProvider.GetRequiredService(consumer.ConsumerType);
         var processMethod = consumer.ConsumerType.GetMethod(nameof(IConsumer<BaseMessage>.Process));
         if (processMethod == null)
             throw new InvalidOperationException($"No process method found for consumer {consumer.ConsumerType.FullName}");
 
-        var message = GetMessage(outboundMessage);
+        var message = GetMessage(outboundMessage, consumer.MessageType);
         await (Task) processMethod.Invoke(consumerInstance, new[] {message});
     }
-
-    private static object GetMessage(BaseMessage baseMessage)
+    
+    public void AddDispatchConsumer(Type consumerType)
     {
-        var messageType = Type.GetType(baseMessage.MessageContract);
-        if (messageType == null)
-            throw new InvalidOperationException($"No message type found for contract {baseMessage.MessageContract}");
-
-        var message = JsonSerializer.Deserialize(baseMessage.Content, messageType);
-        if (message == null)
-            throw new InvalidOperationException($"Failed to deserialize message {baseMessage.Content} to type {messageType.FullName}");
-
-        return message;
-    }
-
-    internal void AddDispatchConsumer(Type consumerType)
-    {
-        Consumers ??= [];
-        
         var consumerEndpoint = consumerType.FullName!;
 
         if (Consumers.Any(x => x.ConsumerEndpoint == consumerEndpoint))
@@ -64,21 +50,31 @@ internal class Dispatcher(IServiceProvider serviceProvider,
 
         var messageContract = messageType.FullName!;
         
-        
         var consumer = new DispatcherConsumer
         {
             MessageContract = messageContract,
             ConsumerEndpoint = consumerEndpoint,
-            ConsumerType = consumerType
+            ConsumerType = consumerType,
+            MessageType = messageType
         };
         
         Consumers.Add(consumer);
     }
+
+    private static object GetMessage(BaseMessage baseMessage, Type messageType)
+    {
+        var message = JsonSerializer.Deserialize(baseMessage.Content, messageType);
+        if (message == null)
+            throw new InvalidOperationException($"Failed to deserialize message {baseMessage.Content} to type {messageType.FullName}");
+
+        return message;
+    }
     
-    internal class DispatcherConsumer
+    public class DispatcherConsumer
     {
         public required string MessageContract { get; set; }
         public required string ConsumerEndpoint { get; set; }
         public required Type ConsumerType { get; set; }
+        public required Type MessageType { get; set; }
     }
 }
