@@ -1,8 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using MirageQueue.Consumers.Abstractions;
-using MirageQueue.Databases;
-using MirageQueue.Postgres.Consumers;
+using MirageQueue.Consumers;
+using MirageQueue.Messages.Repositories;
+using MirageQueue.Postgres.Databases;
+using MirageQueue.Postgres.Workers;
 using MirageQueue.Publishers;
 using MirageQueue.Publishers.Abstractions;
 
@@ -13,7 +14,10 @@ public static class MirageQueuePostgresExtensions
     public static void AddMirageQueuePostgres(this IServiceCollection services, Action<DbContextOptionsBuilder> options)
     {
         services.AddDbContext<MirageQueueDbContext>(options);
-        services.AddScoped<IMessageHandler, PostgresMessageHandler>();
-        services.AddScoped<IPublisher, Publisher>();
+        services.AddHostedService<PgOutMessageWorker>();
+        services.AddHostedService<PgInMessageWorker>();
+        services.AddScoped<IInboundMessageRepository, InboundMessageRepository>();
+        services.AddScoped<IOutboundMessageRepository, OutboundMessageRepository>();
+        
     }
 }

@@ -1,35 +1,46 @@
 ﻿using MassTransit;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Consumers.Abstractions;
 using MirageQueue.Messages.Entities;
+using MirageQueue.Messages.Repositories;
 
 namespace MirageQueue.Consumers;
 
-public abstract class MessageHandler : IMessageHandler
+public class MessageHandler : IMessageHandler
 {
     private readonly ILogger<MessageHandler> _logger;
-    private readonly DbContext _dbContext;
+    private readonly IOutboundMessageRepository _outboundMessageRepository;
+    private readonly IInboundMessageRepository _inboundMessageRepository;
+
     private readonly Dispatcher _dispatcher;
 
-    protected MessageHandler(
+    public MessageHandler(
         ILogger<MessageHandler> logger,
-        DbContext dbContext, 
+        IOutboundMessageRepository outboundMessageRepository,
+        IInboundMessageRepository inboundMessageRepository,
         Dispatcher dispatcher)
     {
         _logger = logger;
-        _dbContext = dbContext;
+        _outboundMessageRepository = outboundMessageRepository;
+        _inboundMessageRepository = inboundMessageRepository;
         _dispatcher = dispatcher;
     }
 
-    protected abstract Task<List<InboundMessage>> GetInboundMessages();
-    
-    protected abstract Task<List<OutboundMessage>> GetOutboundMessage();
-
-    public async Task HandleQueuedOutboundMessages()
+    private async Task<List<InboundMessage>> GetInboundMessages(IDbContextTransaction dbTransaction)
     {
-        var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
-        var messages = await GetOutboundMessage();
+        return await _inboundMessageRepository.GetQueuedMessages(10, dbTransaction);
+    }
+
+    private async Task<List<OutboundMessage>> GetOutboundMessage(IDbContextTransaction dbTransaction)
+    {
+        return await _outboundMessageRepository.GetQueuedMessages(10, dbTransaction);
+    }
+
+    public async Task HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction)
+    {
+        var messages = await GetOutboundMessage(dbTransaction);
+        await _outboundMessageRepository.SetTransaction(dbTransaction);
 
         foreach (var message in messages)
         {
@@ -43,17 +54,12 @@ public abstract class MessageHandler : IMessageHandler
                 _logger.LogError(e, "Error while processing outbound message {MessageId}", message.Id);
                 message.ChangeStatus(OutboundMessageStatus.Failed);
             }
-
-            await _dbContext.SaveChangesAsync();
         }
-
-        await dbTransaction.CommitAsync();
     }
 
-    public async Task HandleQueuedInboundMessages()
+    public async Task HandleQueuedInboundMessages(IDbContextTransaction dbTransaction)
     {
-        var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
-        var inboundMessages = await GetInboundMessages();
+        var inboundMessages = await GetInboundMessages(dbTransaction);
 
         try
         {
@@ -61,13 +67,10 @@ public abstract class MessageHandler : IMessageHandler
             {
                 await CovertInboundToOutboundMessage(inboundMessage);
             }
-            
-            await dbTransaction.CommitAsync();
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Error while processing inbound messages");
-            await dbTransaction.RollbackAsync();
         }
     }
     
@@ -76,8 +79,8 @@ public abstract class MessageHandler : IMessageHandler
         await CreateOutboundMessages(inboundMessage);
         inboundMessage.Status = InboundMessageStatus.Queued;
         inboundMessage.UpdateAt = DateTime.UtcNow;
-        _dbContext.Set<InboundMessage>().Update(inboundMessage);
-        await _dbContext.SaveChangesAsync();
+        await _inboundMessageRepository.Update(inboundMessage);
+        await _inboundMessageRepository.SaveChanges();
     }
     
     private async Task CreateOutboundMessages(InboundMessage inboundMessage)
@@ -86,7 +89,7 @@ public abstract class MessageHandler : IMessageHandler
         
         foreach (var consumer in consumers)
         {
-            if (await _dbContext.Set<OutboundMessage>().AnyAsync(x => x.ConsumerEndpoint == consumer.ConsumerEndpoint
+            if (await _outboundMessageRepository.Any(x => x.ConsumerEndpoint == consumer.ConsumerEndpoint
                                                                 && x.InboundMessageId == inboundMessage.Id)) continue;
             var outboundMessage = new OutboundMessage
             {
@@ -99,12 +102,11 @@ public abstract class MessageHandler : IMessageHandler
                 InboundMessageId = inboundMessage.Id
             };
 
-            _dbContext.Set<OutboundMessage>().Add(outboundMessage);
+            await _outboundMessageRepository.InsertAsync(outboundMessage);
         }
         
         inboundMessage.Status = InboundMessageStatus.Queued;
         inboundMessage.UpdateAt = DateTime.UtcNow;
-        _dbContext.Set<InboundMessage>().Update(inboundMessage);
-        await _dbContext.SaveChangesAsync();
+        await _inboundMessageRepository.Update(inboundMessage);
     }
 }

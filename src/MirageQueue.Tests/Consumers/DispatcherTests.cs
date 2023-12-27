@@ -22,7 +22,7 @@ public class DispatcherTests
         services.AddSingleton(logger.Object);
         services.AddSingleton(_dummyService.Object);
         services.AddSingleton<Dispatcher>();
-        services.AddSingleton<DummyConsumer>();
+        DispatcherContext.MapFromAssembly(typeof(DummyConsumer).Assembly, type => services.AddScoped(type));
 
         _serviceProvider = services.BuildServiceProvider();
     }
@@ -31,7 +31,7 @@ public class DispatcherTests
     public async Task ShouldCallConsumerDispatch()
     {
         var sut = _serviceProvider.GetRequiredService<Dispatcher>();
-        sut.AddDispatchConsumer(typeof(DummyConsumer));
+        ;
 
         var messageContent = JsonSerializer.Serialize(new DummyMessage
         {

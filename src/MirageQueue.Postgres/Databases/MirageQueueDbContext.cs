@@ -1,9 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MirageQueue.Messages.Entities;
 
-namespace MirageQueue.Databases;
+namespace MirageQueue.Postgres.Databases;
 
-public class MirageQueueDbContext : DbContext
+public class MirageQueueDbContext(DbContextOptions<MirageQueueDbContext> options) : DbContext(options)
 {
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

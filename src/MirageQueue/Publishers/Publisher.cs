@@ -2,17 +2,18 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using MirageQueue.Messages.Entities;
+using MirageQueue.Messages.Repositories;
 using MirageQueue.Publishers.Abstractions;
 
 namespace MirageQueue.Publishers;
 
 public class Publisher : IPublisher
 {
-    private readonly DbContext _dbContext;
+    private readonly IInboundMessageRepository _inboundMessageRepository;
 
-    public Publisher(DbContext dbContext) 
+    public Publisher(IInboundMessageRepository inboundMessageRepository)
     {
-        _dbContext = dbContext;
+        _inboundMessageRepository = inboundMessageRepository;
     }
     
     public async Task Publish<TMessage>(TMessage message, CancellationToken cancellationToken = default)
@@ -28,7 +29,7 @@ public class Publisher : IPublisher
             UpdateAt = DateTime.UtcNow
         };
         
-        await _dbContext.Set<InboundMessage>().AddAsync(inboundMessage, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _inboundMessageRepository.InsertAsync(inboundMessage);
+        await _inboundMessageRepository.SaveChanges();
     }
 }

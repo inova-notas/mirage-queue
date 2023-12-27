@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MirageQueue.Tests", "Mirage
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{7DCAA977-4662-4A76-ADC0-B28FDCF51BAE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExampleApi", "examples\Api\ExampleApi\ExampleApi.csproj", "{06972911-C6F1-4F4E-8F2C-8524DF835BB7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{D7CC27A4-A87E-41D7-88A8-750A0AA77106}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,11 +33,16 @@ Global
 		{4AB3CCD3-6A98-477D-9A3E-EB4FA7C3519A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4AB3CCD3-6A98-477D-9A3E-EB4FA7C3519A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4AB3CCD3-6A98-477D-9A3E-EB4FA7C3519A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{06972911-C6F1-4F4E-8F2C-8524DF835BB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{06972911-C6F1-4F4E-8F2C-8524DF835BB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{06972911-C6F1-4F4E-8F2C-8524DF835BB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{06972911-C6F1-4F4E-8F2C-8524DF835BB7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4AB3CCD3-6A98-477D-9A3E-EB4FA7C3519A} = {7DCAA977-4662-4A76-ADC0-B28FDCF51BAE}
+		{06972911-C6F1-4F4E-8F2C-8524DF835BB7} = {D7CC27A4-A87E-41D7-88A8-750A0AA77106}
 	EndGlobalSection
 EndGlobal

@@ -1,11 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Consumers.Abstractions;
 
 namespace MirageQueue.Workers;
 
-public class InboundMessageHandlerWorker : BackgroundService
+public abstract class InboundMessageHandlerWorker : BackgroundService, IMessageHandlerWorker
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<InboundMessageHandlerWorker> _logger;
@@ -26,9 +29,17 @@ public class InboundMessageHandlerWorker : BackgroundService
         {
             await using var scope = _serviceProvider.CreateAsyncScope();
             var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
-            await messageHandler.HandleQueuedInboundMessages();
+            
+            await using var dbContext = GetContext(scope);
+            var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
+            
+            await messageHandler.HandleQueuedInboundMessages(transaction);
+
+            await transaction.CommitAsync(stoppingToken);
             
             await Task.Delay(TimeSpan.FromSeconds(_configuration.PoolingTime), stoppingToken);
         }
     }
+
+    public abstract DbContext GetContext(AsyncServiceScope scope);
 }

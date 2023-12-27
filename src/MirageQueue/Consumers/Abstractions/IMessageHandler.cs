@@ -1,7 +1,10 @@
-﻿namespace MirageQueue.Consumers.Abstractions;
+﻿using System.Data;
+using Microsoft.EntityFrameworkCore.Storage;
+
+namespace MirageQueue.Consumers.Abstractions;
 
 public interface IMessageHandler
 {
-    Task HandleQueuedInboundMessages();
-    Task HandleQueuedOutboundMessages();
+    Task HandleQueuedInboundMessages(IDbContextTransaction dbTransaction);
+    Task HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction);
 }

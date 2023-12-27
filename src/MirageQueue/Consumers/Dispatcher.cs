@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Reflection;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Consumers.Abstractions;
@@ -9,7 +10,7 @@ namespace MirageQueue.Consumers;
 public class Dispatcher(IServiceProvider serviceProvider,
     ILogger<Dispatcher> logger)
 {
-    public List<DispatcherConsumer> Consumers { get; } = [];
+    public List<DispatcherConsumer> Consumers => DispatcherContext.Consumers;
 
     public async Task ProcessOutboundMessage(OutboundMessage outboundMessage)
     {
@@ -29,37 +30,6 @@ public class Dispatcher(IServiceProvider serviceProvider,
         var message = GetMessage(outboundMessage, consumer.MessageType);
         await (Task) processMethod.Invoke(consumerInstance, new[] {message});
     }
-    
-    public void AddDispatchConsumer(Type consumerType)
-    {
-        var consumerEndpoint = consumerType.FullName!;
-
-        if (Consumers.Any(x => x.ConsumerEndpoint == consumerEndpoint))
-            throw new ArgumentException($"Consumer with endpoint {consumerEndpoint} already registered",
-                nameof(consumerType));
-        
-        var interfaces = consumerType.GetInterfaces();
-        
-        if(interfaces.All(x => x.GetGenericTypeDefinition() != typeof(IConsumer<>)))
-            throw new ArgumentException("Consumer must implement IConsumer<TMessage> interface", nameof(consumerType));
-        
-        var messageType = interfaces
-            .Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConsumer<>))
-            .Select(x => x.GetGenericArguments()[0])
-            .First();
-
-        var messageContract = messageType.FullName!;
-        
-        var consumer = new DispatcherConsumer
-        {
-            MessageContract = messageContract,
-            ConsumerEndpoint = consumerEndpoint,
-            ConsumerType = consumerType,
-            MessageType = messageType
-        };
-        
-        Consumers.Add(consumer);
-    }
 
     private static object GetMessage(BaseMessage baseMessage, Type messageType)
     {
@@ -68,13 +38,5 @@ public class Dispatcher(IServiceProvider serviceProvider,
             throw new InvalidOperationException($"Failed to deserialize message {baseMessage.Content} to type {messageType.FullName}");
 
         return message;
-    }
-    
-    public class DispatcherConsumer
-    {
-        public required string MessageContract { get; set; }
-        public required string ConsumerEndpoint { get; set; }
-        public required Type ConsumerType { get; set; }
-        public required Type MessageType { get; set; }
     }
 }
