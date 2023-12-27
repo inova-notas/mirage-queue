@@ -12,7 +12,8 @@ public static class MirageQueueExtensions
     private static readonly MirageQueueConfiguration Configuration = new MirageQueueConfiguration
     {
         PoolingTime = 10,
-        WorkersAmount = 5
+        AckMessageQuantity = 1,
+        WorkersQuantity = 5
     };
     public static void AddMirageQueue(this IServiceCollection services, Action<MirageQueueConfiguration> options)
     {

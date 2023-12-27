@@ -12,13 +12,14 @@ public abstract class InboundMessageHandlerWorker(
     MirageQueueConfiguration configuration)
     : BackgroundService, IMessageHandlerWorker
 {
+    private readonly Random _random = new();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Starting {workerAmount} Inbound message workers...", configuration.WorkersAmount);
+        logger.LogInformation("Starting {workerAmount} Inbound message workers...", configuration.WorkersQuantity);
 
         var tasks = new List<Task>();
 
-        for (var i = 0; i < configuration.WorkersAmount; i++)
+        for (var i = 0; i < configuration.WorkersQuantity; i++)
         {
             tasks.Add(Worker(Guid.NewGuid(), stoppingToken));
         }
@@ -28,6 +29,7 @@ public abstract class InboundMessageHandlerWorker(
 
     private async Task Worker(Guid workerId, CancellationToken stoppingToken)
     {
+        await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(10, 300)), stoppingToken);
         logger.LogInformation("Started Inbound message worker {WorkerId}", workerId);
 
         await using var scope = serviceProvider.CreateAsyncScope();

@@ -15,11 +15,11 @@ public abstract class OutboundMessageHandlerWorker(
     private readonly Random _random = new();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Starting {workerAmount} Outbound message workers...", configuration.WorkersAmount);
+        logger.LogInformation("Starting {workerAmount} Outbound message workers...", configuration.WorkersQuantity);
 
         var tasks = new List<Task>();
 
-        for (var i = 0; i < configuration.WorkersAmount; i++)
+        for (var i = 0; i < configuration.WorkersQuantity; i++)
         {
             tasks.Add(Worker(Guid.NewGuid(), stoppingToken));
         }
@@ -29,6 +29,7 @@ public abstract class OutboundMessageHandlerWorker(
 
     private async Task Worker(Guid workerId, CancellationToken stoppingToken)
     {
+        await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(10, 300)), stoppingToken);
         logger.LogInformation("Started Outbound message worker {WorkerId}", workerId);
 
         await using var scope = serviceProvider.CreateAsyncScope();

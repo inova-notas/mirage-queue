@@ -14,7 +14,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddMirageQueue(options =>
 {
-    options.PoolingTime = 1;
+    options.PoolingTime = 3;
 });
 
 builder.Services.AddMirageQueuePostgres(options =>
