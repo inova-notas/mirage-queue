@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.1.0"></a>
+## [1.1.0](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.1.0) (2023-12-27)
+
+### Features
+
+* changed to process each message on a separate worker ([9837e8f](https://www.github.com/Beeposts/mirage-queue/commit/9837e8f355c74351f9ca52fa722b8342c4699897))
+
 <a name="1.0.0"></a>
 ## [1.0.0](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.0.0) (2023-12-27)
 
