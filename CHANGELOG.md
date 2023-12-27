@@ -2,9 +2,6 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
-<a name="1.0.1"></a>
-## [1.0.1](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.0.1) (2023-12-27)
-
 <a name="1.0.0"></a>
 ## [1.0.0](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.0.0) (2023-12-27)
 
@@ -22,5 +19,5 @@ All notable changes to this project will be documented in this file. See [versio
 * changed the solution/project folder name ([97f307c](https://www.github.com/Beeposts/mirage-queue/commit/97f307c2bb7cf845fd00d64ac578dcf7bafe3ade))
 * check for existing consumer before add it ([b545087](https://www.github.com/Beeposts/mirage-queue/commit/b545087cca7eea01ab9d9ebe9aebe3f5f5328725))
 * moved solution to src folder ([2447fd8](https://www.github.com/Beeposts/mirage-queue/commit/2447fd8babfe2064b0a9b945acff59a43aebb244))
-* Removed OS/IDE specfic folder ([09be790](https://www.gi
+* Removed OS/IDE specfic folder ([09be790](https://www.github.com/Beeposts/mirage-queue/commit/09be790da8b10817b13194ec45721210d773e2ba))
 
