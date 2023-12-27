@@ -1,9 +1,8 @@
-﻿using System.Text.Json;
-using MassTransit;
-using Microsoft.EntityFrameworkCore;
+﻿using MassTransit;
 using MirageQueue.Messages.Entities;
 using MirageQueue.Messages.Repositories;
 using MirageQueue.Publishers.Abstractions;
+using System.Text.Json;
 
 namespace MirageQueue.Publishers;
 
@@ -15,7 +14,7 @@ public class Publisher : IPublisher
     {
         _inboundMessageRepository = inboundMessageRepository;
     }
-    
+
     public async Task Publish<TMessage>(TMessage message, CancellationToken cancellationToken = default)
         where TMessage : class
     {
@@ -28,7 +27,7 @@ public class Publisher : IPublisher
             CreateAt = DateTime.UtcNow,
             UpdateAt = DateTime.UtcNow
         };
-        
+
         await _inboundMessageRepository.InsertAsync(inboundMessage);
         await _inboundMessageRepository.SaveChanges();
     }

@@ -3,11 +3,11 @@ using System.Text.Json;
 
 namespace ExampleApi;
 
-public class AnotherTestMessageConsumer : IConsumer<TestMessage>
+public class CreateBusinessConsumer : IConsumer<TestMessage>
 {
     public Task Process(TestMessage message)
     {
-        Console.WriteLine($"Another test message: {JsonSerializer.Serialize(message)}");
+        Console.WriteLine($"Create Business test message: {JsonSerializer.Serialize(message)}");
         return Task.CompletedTask;
     }
 }

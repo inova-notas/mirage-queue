@@ -1,5 +1,4 @@
-﻿using System.Data;
-using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore.Storage;
 
 namespace MirageQueue.Consumers.Abstractions;
 

@@ -6,4 +6,5 @@ public class MirageQueueConfiguration
     /// Represents the time in seconds to pull the messages from database
     /// </summary>
     public int PoolingTime { get; set; }
+    public int WorkersAmount { get; set; }
 }

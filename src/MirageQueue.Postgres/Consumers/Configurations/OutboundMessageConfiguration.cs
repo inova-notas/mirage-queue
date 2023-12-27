@@ -13,7 +13,7 @@ public class OutboundMessageConfiguration : IEntityTypeConfiguration<OutboundMes
 
         builder.Property(x => x.MessageContract)
             .HasMaxLength(200);
-        
+
         builder.Property(x => x.ConsumerEndpoint)
             .HasMaxLength(300);
     }

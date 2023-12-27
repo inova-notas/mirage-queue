@@ -14,7 +14,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddMirageQueue(options =>
 {
-    options.PoolingTime = 2;
+    options.PoolingTime = 1;
 });
 
 builder.Services.AddMirageQueuePostgres(options =>
@@ -46,7 +46,7 @@ app.MapPost("/publish", async ([FromServices] IPublisher publisher) =>
     {
         Id = Guid.NewGuid()
     });
-    
+
     return Results.Ok();
 });
 

@@ -73,7 +73,7 @@ public class MessageHandler : IMessageHandler
             _logger.LogError(e, "Error while processing inbound messages");
         }
     }
-    
+
     private async Task CovertInboundToOutboundMessage(InboundMessage inboundMessage)
     {
         await CreateOutboundMessages(inboundMessage);
@@ -82,11 +82,11 @@ public class MessageHandler : IMessageHandler
         await _inboundMessageRepository.Update(inboundMessage);
         await _inboundMessageRepository.SaveChanges();
     }
-    
+
     private async Task CreateOutboundMessages(InboundMessage inboundMessage)
     {
         var consumers = _dispatcher.Consumers.Where(x => x.MessageContract == inboundMessage.MessageContract);
-        
+
         foreach (var consumer in consumers)
         {
             if (await _outboundMessageRepository.Any(x => x.ConsumerEndpoint == consumer.ConsumerEndpoint
@@ -104,7 +104,7 @@ public class MessageHandler : IMessageHandler
 
             await _outboundMessageRepository.InsertAsync(outboundMessage);
         }
-        
+
         inboundMessage.Status = InboundMessageStatus.Queued;
         inboundMessage.UpdateAt = DateTime.UtcNow;
         await _inboundMessageRepository.Update(inboundMessage);

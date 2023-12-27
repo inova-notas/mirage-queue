@@ -8,5 +8,5 @@ public interface IConsumer<in TMessage> : IConsumer
 
 public interface IConsumer
 {
-    
+
 }

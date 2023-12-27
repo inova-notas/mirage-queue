@@ -1,6 +1,5 @@
-﻿using System.Data;
+﻿using Microsoft.EntityFrameworkCore.Storage;
 using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace MirageQueue.Common;
 
@@ -14,7 +13,7 @@ public interface IRepository<TEntity> where TEntity : class
     Task<TEntity> InsertAsync(TEntity entity);
     Task<TEntity> Update(TEntity entity);
     Task Delete(TEntity entity);
-    
+
     Task<IQueryable<TEntity>> GetAllAsync();
     Task<IQueryable<TEntity>> GetAllNoTrackingAsync();
     Task<bool> Any(Expression<Func<TEntity, bool>> predicate, IDbContextTransaction? transaction = default);

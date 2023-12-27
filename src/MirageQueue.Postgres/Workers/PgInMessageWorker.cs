@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Postgres.Databases;
@@ -13,8 +12,6 @@ public class PgInMessageWorker(
     MirageQueueConfiguration configuration)
     : InboundMessageHandlerWorker(serviceProvider, logger, configuration)
 {
-    private readonly IServiceProvider _serviceProvider = serviceProvider;
-
     public override DbContext GetContext(AsyncServiceScope scope)
     {
         return scope.ServiceProvider.GetRequiredService<MirageQueueDbContext>();

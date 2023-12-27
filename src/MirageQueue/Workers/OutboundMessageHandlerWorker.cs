@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -7,39 +6,47 @@ using MirageQueue.Consumers.Abstractions;
 
 namespace MirageQueue.Workers;
 
-public abstract class OutboundMessageHandlerWorker : BackgroundService, IMessageHandlerWorker
+public abstract class OutboundMessageHandlerWorker(
+    IServiceProvider serviceProvider,
+    ILogger<OutboundMessageHandlerWorker> logger,
+    MirageQueueConfiguration configuration)
+    : BackgroundService, IMessageHandlerWorker
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<OutboundMessageHandlerWorker> _logger;
-    private readonly MirageQueueConfiguration _configuration;
-
-    public OutboundMessageHandlerWorker(IServiceProvider serviceProvider,
-        ILogger<OutboundMessageHandlerWorker> logger,
-        MirageQueueConfiguration configuration)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-        _configuration = configuration;
-    }
+    private readonly Random _random = new();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Outbound message handler worker is running");
-        
+        logger.LogInformation("Starting {workerAmount} Outbound message workers...", configuration.WorkersAmount);
+
+        var tasks = new List<Task>();
+
+        for (var i = 0; i < configuration.WorkersAmount; i++)
+        {
+            tasks.Add(Worker(Guid.NewGuid(), stoppingToken));
+        }
+
+        await Task.WhenAll(tasks.ToArray());
+    }
+
+    private async Task Worker(Guid workerId, CancellationToken stoppingToken)
+    {
+        logger.LogInformation("Started Outbound message worker {WorkerId}", workerId);
+
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
+        var dbContext = GetContext(scope);
+
         while (!stoppingToken.IsCancellationRequested)
         {
-            await using var scope = _serviceProvider.CreateAsyncScope();
-            var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
-
-            var dbContext = GetContext(scope);
+            
             var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
             await messageHandler.HandleQueuedOutboundMessages(transaction);
-            
+
             await dbContext.SaveChangesAsync(stoppingToken);
             await transaction.CommitAsync(stoppingToken);
-            
-            await Task.Delay(TimeSpan.FromSeconds(_configuration.PoolingTime), stoppingToken);
+
+            await Task.Delay(TimeSpan.FromSeconds(configuration.PoolingTime), stoppingToken);
         }
     }
-    
+
     public abstract DbContext GetContext(AsyncServiceScope scope);
 }

@@ -1,5 +1,5 @@
-﻿using System.Text.Json;
-using MirageQueue.Consumers.Abstractions;
+﻿using MirageQueue.Consumers.Abstractions;
+using System.Text.Json;
 
 namespace ExampleApi;
 
