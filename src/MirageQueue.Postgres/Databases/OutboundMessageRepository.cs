@@ -22,7 +22,7 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
 
         var sql =
-            $"SELECT * FROM \"{nameof(OutboundMessage)}\" WHERE \"{nameof(OutboundMessage.Status)}\" = {(int)OutboundMessageStatus.New} FOR UPDATE SKIP LOCKED LIMIT 10";
+            $"SELECT * FROM \"{nameof(OutboundMessage)}\" WHERE \"{nameof(OutboundMessage.Status)}\" = {(int)OutboundMessageStatus.New} FOR UPDATE SKIP LOCKED LIMIT {limit}";
 
         return await _dbContext.Set<OutboundMessage>()
             .FromSqlRaw(sql)

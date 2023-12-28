@@ -21,7 +21,7 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
 
         var sql =
-            $"SELECT * FROM \"{nameof(InboundMessage)}\" WHERE \"{nameof(InboundMessage.Status)}\" = {(int)InboundMessageStatus.New} FOR UPDATE SKIP LOCKED LIMIT 10";
+            $"SELECT * FROM \"{nameof(InboundMessage)}\" WHERE \"{nameof(InboundMessage.Status)}\" = {(int)InboundMessageStatus.New} FOR UPDATE SKIP LOCKED LIMIT {limit}";
 
         return await _dbContext.Set<InboundMessage>()
             .FromSqlRaw(sql)
