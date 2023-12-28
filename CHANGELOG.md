@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.1.1"></a>
+## [1.1.1](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.1.1) (2023-12-28)
+
+### Bug Fixes
+
+* changed select message query to use limit parameter ([3010980](https://www.github.com/Beeposts/mirage-queue/commit/3010980e2572b565e2c488d61b20d34b2a8e1b47))
+
 <a name="1.1.0"></a>
 ## [1.1.0](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.1.0) (2023-12-27)
 
