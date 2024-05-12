@@ -7,8 +7,6 @@ version: 2
 updates:
   - package-ecosystem: nuget
     directory: "/src"
-    registries:
-      - nuget-private
     schedule:
       interval: daily
     open-pull-requests-limit: 20
