@@ -10,7 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMirageQueue(options =>
 {
-    options.PoolingTime = 3;
+    options.PoolingTime = 1;
+    options.WorkersQuantity = 10;
+    options.ScheduleWorkersQuantity = 2;
 });
 
 builder.Services.AddMirageQueuePostgres(options =>

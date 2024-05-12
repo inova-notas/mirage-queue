@@ -35,22 +35,22 @@ public class MessageHandler(
     {
         var messages = await GetOutboundMessage(dbTransaction);
         await outboundMessageRepository.SetTransaction(dbTransaction);
-        var tasks = messages.Select(CallOutboundDispatcher).ToList();
+        var tasks = messages.Select(s => CallOutboundDispatcher(s, dbTransaction)).ToList();
         
         await Task.WhenAll(tasks);
     }
 
-    public async Task CallOutboundDispatcher(OutboundMessage message)
+    public async Task CallOutboundDispatcher(OutboundMessage message, IDbContextTransaction dbTransaction)
     {
         try
         {
             await dispatcher.ProcessOutboundMessage(message);
-            message.ChangeStatus(OutboundMessageStatus.Processing);
+            await outboundMessageRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Processed, dbTransaction);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error while processing outbound message {MessageId}", message.Id);
-            message.ChangeStatus(OutboundMessageStatus.Failed);
+            await outboundMessageRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Failed, dbTransaction);
         }
     }
 
@@ -62,7 +62,7 @@ public class MessageHandler(
         {
             foreach (var inboundMessage in inboundMessages)
             {
-                await CovertInboundToOutboundMessage(inboundMessage);
+                await CovertInboundToOutboundMessage(inboundMessage, dbTransaction);
             }
         }
         catch (Exception e)
@@ -78,7 +78,7 @@ public class MessageHandler(
         {
             foreach (var message in scheduledMessages)
             {
-                await ConvertScheduledToInboundMessage(message);
+                await ConvertScheduledToInboundMessage(message, dbTransaction);
             }
         }
         catch (Exception e)
@@ -87,7 +87,7 @@ public class MessageHandler(
         }
     }
     
-    private async Task ConvertScheduledToInboundMessage(ScheduledInboundMessage scheduledMessage)
+    private async Task ConvertScheduledToInboundMessage(ScheduledInboundMessage scheduledMessage, IDbContextTransaction dbTransaction)
     {
         try
         {
@@ -101,9 +101,10 @@ public class MessageHandler(
                 UpdateAt = DateTime.UtcNow,
             };
 
-            scheduledMessage.Status = ScheduledInboundMessageStatus.Queued;
+            await scheduledMessageRepository.UpdateMessageStatus(scheduledMessage.Id, ScheduledInboundMessageStatus.Queued,
+                dbTransaction);
+            
             await inboundMessageRepository.InsertAsync(inboundMessage);
-
             await inboundMessageRepository.SaveChanges();
         }
         catch (Exception e)
@@ -113,13 +114,11 @@ public class MessageHandler(
         }
     }
 
-    private async Task CovertInboundToOutboundMessage(InboundMessage inboundMessage)
+    private async Task CovertInboundToOutboundMessage(InboundMessage inboundMessage, IDbContextTransaction dbTransaction)
     {
         await CreateOutboundMessages(inboundMessage);
-        inboundMessage.Status = InboundMessageStatus.Queued;
-        inboundMessage.UpdateAt = DateTime.UtcNow;
-        await inboundMessageRepository.Update(inboundMessage);
-        await inboundMessageRepository.SaveChanges();
+        await inboundMessageRepository.UpdateMessageStatus(inboundMessage.Id, InboundMessageStatus.Queued,
+            dbTransaction);
     }
 
     private async Task CreateOutboundMessages(InboundMessage inboundMessage)
@@ -143,9 +142,5 @@ public class MessageHandler(
 
             await outboundMessageRepository.InsertAsync(outboundMessage);
         }
-
-        inboundMessage.Status = InboundMessageStatus.Queued;
-        inboundMessage.UpdateAt = DateTime.UtcNow;
-        await inboundMessageRepository.Update(inboundMessage);
     }
 }

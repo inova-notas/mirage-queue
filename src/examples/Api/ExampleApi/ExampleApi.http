@@ -1,6 +1,12 @@
 @ExampleApi_HostAddress = http://localhost:5172
 
-GET {{ExampleApi_HostAddress}}/weatherforecast/
+POST {{ExampleApi_HostAddress}}/publish
+Accept: application/json
+
+###
+
+
+POST {{ExampleApi_HostAddress}}/schedule
 Accept: application/json
 
 ###
