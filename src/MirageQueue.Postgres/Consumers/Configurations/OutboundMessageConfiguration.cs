@@ -8,6 +8,7 @@ public class OutboundMessageConfiguration : IEntityTypeConfiguration<OutboundMes
 {
     public void Configure(EntityTypeBuilder<OutboundMessage> builder)
     {
+        builder.ToTable(nameof(OutboundMessage), "mirage_queue");
         builder.Property(x => x.Content)
             .HasColumnType("jsonb");
 

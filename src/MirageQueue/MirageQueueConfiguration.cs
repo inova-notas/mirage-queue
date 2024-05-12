@@ -8,4 +8,5 @@ public class MirageQueueConfiguration
     public int PoolingTime { get; set; }
     public int WorkersQuantity { get; set; }
     public int AckMessageQuantity { get; set; }
+    public int ScheduleWorkersQuantity { get; set; }
 }

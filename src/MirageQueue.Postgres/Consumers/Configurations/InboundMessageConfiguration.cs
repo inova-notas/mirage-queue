@@ -8,6 +8,8 @@ public class InboundMessageConfiguration : IEntityTypeConfiguration<InboundMessa
 {
     public void Configure(EntityTypeBuilder<InboundMessage> builder)
     {
+        builder.ToTable(nameof(InboundMessage), "mirage_queue");
+
         builder.Property(x => x.Content)
             .HasColumnType("jsonb");
 

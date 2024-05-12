@@ -1,8 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace MirageQueue.Postgres.Migrations
+namespace MirageQueue.Postgres.Databases.Migrations
 {
     /// <inheritdoc />
     public partial class Initial : Migration
@@ -10,8 +11,12 @@ namespace MirageQueue.Postgres.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "mirage_queue");
+
             migrationBuilder.CreateTable(
                 name: "InboundMessage",
+                schema: "mirage_queue",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -28,6 +33,7 @@ namespace MirageQueue.Postgres.Migrations
 
             migrationBuilder.CreateTable(
                 name: "ScheduledInboundMessage",
+                schema: "mirage_queue",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -45,6 +51,7 @@ namespace MirageQueue.Postgres.Migrations
 
             migrationBuilder.CreateTable(
                 name: "OutboundMessage",
+                schema: "mirage_queue",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -62,6 +69,7 @@ namespace MirageQueue.Postgres.Migrations
                     table.ForeignKey(
                         name: "FK_OutboundMessage_InboundMessage_InboundMessageId",
                         column: x => x.InboundMessageId,
+                        principalSchema: "mirage_queue",
                         principalTable: "InboundMessage",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -69,6 +77,7 @@ namespace MirageQueue.Postgres.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_OutboundMessage_InboundMessageId",
+                schema: "mirage_queue",
                 table: "OutboundMessage",
                 column: "InboundMessageId");
         }
@@ -77,13 +86,16 @@ namespace MirageQueue.Postgres.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "OutboundMessage");
+                name: "OutboundMessage",
+                schema: "mirage_queue");
 
             migrationBuilder.DropTable(
-                name: "ScheduledInboundMessage");
+                name: "ScheduledInboundMessage",
+                schema: "mirage_queue");
 
             migrationBuilder.DropTable(
-                name: "InboundMessage");
+                name: "InboundMessage",
+                schema: "mirage_queue");
         }
     }
 }

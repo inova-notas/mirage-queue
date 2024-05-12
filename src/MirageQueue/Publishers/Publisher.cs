@@ -9,19 +9,24 @@ namespace MirageQueue.Publishers;
 public class Publisher : IPublisher
 {
     private readonly IInboundMessageRepository _inboundMessageRepository;
+    private readonly IScheduledMessageRepository _scheduledMessageRepository;
 
-    public Publisher(IInboundMessageRepository inboundMessageRepository)
+    public Publisher(IInboundMessageRepository inboundMessageRepository,
+        IScheduledMessageRepository scheduledMessageRepository)
     {
         _inboundMessageRepository = inboundMessageRepository;
+        _scheduledMessageRepository = scheduledMessageRepository;
     }
 
     public async Task Publish<TMessage>(TMessage message, CancellationToken cancellationToken = default)
         where TMessage : class
     {
+        ArgumentNullException.ThrowIfNull(message);
+
         var inboundMessage = new InboundMessage()
         {
             Id = NewId.NextSequentialGuid(),
-            MessageContract = typeof(TMessage).FullName,
+            MessageContract = typeof(TMessage).FullName ?? typeof(TMessage).Name,
             Content = JsonSerializer.Serialize(message),
             Status = InboundMessageStatus.New,
             CreateAt = DateTime.UtcNow,
@@ -30,5 +35,25 @@ public class Publisher : IPublisher
 
         await _inboundMessageRepository.InsertAsync(inboundMessage);
         await _inboundMessageRepository.SaveChanges();
+    }
+    
+    public async Task Schedule<TMessage>(TMessage message, DateTime scheduledTime, CancellationToken cancellationToken = default)
+        where TMessage : class
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        var scheduleMessage = new ScheduledInboundMessage()
+        {
+            Id = NewId.NextSequentialGuid(),
+            MessageContract = typeof(TMessage).FullName ?? typeof(TMessage).Name,
+            Content = JsonSerializer.Serialize(message),
+            Status = ScheduledInboundMessageStatus.WaitingScheduledTime,
+            ExecuteAt = scheduledTime,
+            CreateAt = DateTime.UtcNow,
+            UpdateAt = DateTime.UtcNow
+        };
+
+        await _scheduledMessageRepository.InsertAsync(scheduleMessage);
+        await _scheduledMessageRepository.SaveChanges();
     }
 }

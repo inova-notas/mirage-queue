@@ -6,4 +6,5 @@ public interface IMessageHandler
 {
     Task HandleQueuedInboundMessages(IDbContextTransaction dbTransaction);
     Task HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction);
+    Task HandleScheduledMessages(IDbContextTransaction dbTransaction);
 }

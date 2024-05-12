@@ -11,6 +11,7 @@ public class MessageHandler(
     ILogger<MessageHandler> logger,
     IOutboundMessageRepository outboundMessageRepository,
     IInboundMessageRepository inboundMessageRepository,
+    IScheduledMessageRepository scheduledMessageRepository,
     Dispatcher dispatcher,
     MirageQueueConfiguration configuration)
     : IMessageHandler
@@ -23,6 +24,11 @@ public class MessageHandler(
     private async Task<List<OutboundMessage>> GetOutboundMessage(IDbContextTransaction dbTransaction)
     {
         return await outboundMessageRepository.GetQueuedMessages(configuration.AckMessageQuantity, dbTransaction);
+    }
+    
+    private async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction dbTransaction)
+    {
+        return await scheduledMessageRepository.GetScheduledMessages(configuration.AckMessageQuantity, dbTransaction);
     }
 
     public async Task HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction)
@@ -62,6 +68,48 @@ public class MessageHandler(
         catch (Exception e)
         {
             logger.LogError(e, "Error while processing inbound messages");
+        }
+    }
+    
+    public async Task HandleScheduledMessages(IDbContextTransaction dbTransaction)
+    {
+        var scheduledMessages = await GetScheduledMessages(dbTransaction);
+        try
+        {
+            foreach (var message in scheduledMessages)
+            {
+                await ConvertScheduledToInboundMessage(message);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error while processing scheduled messages");
+        }
+    }
+    
+    private async Task ConvertScheduledToInboundMessage(ScheduledInboundMessage scheduledMessage)
+    {
+        try
+        {
+            var inboundMessage = new InboundMessage
+            {
+                Id = NewId.NextSequentialGuid(),
+                MessageContract = scheduledMessage.MessageContract,
+                Content = scheduledMessage.Content,
+                Status = InboundMessageStatus.New,
+                CreateAt = DateTime.UtcNow,
+                UpdateAt = DateTime.UtcNow,
+            };
+
+            scheduledMessage.Status = ScheduledInboundMessageStatus.Queued;
+            await inboundMessageRepository.InsertAsync(inboundMessage);
+
+            await inboundMessageRepository.SaveChanges();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error while converting scheduled message to inbound message {Message}", scheduledMessage);
+            throw;
         }
     }
 

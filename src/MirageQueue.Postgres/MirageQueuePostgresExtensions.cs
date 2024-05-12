@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MirageQueue.Messages.Entities;
 using MirageQueue.Messages.Repositories;
 using MirageQueue.Postgres.Databases;
 using MirageQueue.Postgres.Workers;
@@ -13,8 +14,10 @@ public static class MirageQueuePostgresExtensions
         services.AddDbContext<MirageQueueDbContext>(options);
         services.AddHostedService<PgOutMessageWorker>();
         services.AddHostedService<PgInMessageWorker>();
+        services.AddHostedService<PgScheduledMessageWorker>();
         services.AddScoped<IInboundMessageRepository, InboundMessageRepository>();
         services.AddScoped<IOutboundMessageRepository, OutboundMessageRepository>();
+        services.AddScoped<IScheduledMessageRepository, ScheduledMessageRepository>();
 
     }
 }

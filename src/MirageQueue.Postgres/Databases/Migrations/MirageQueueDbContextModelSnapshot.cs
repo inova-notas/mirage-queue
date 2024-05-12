@@ -2,21 +2,18 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MirageQueue.Postgres.Databases;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace MirageQueue.Postgres.Migrations
+namespace MirageQueue.Postgres.Databases.Migrations
 {
     [DbContext(typeof(MirageQueueDbContext))]
-    [Migration("20231226234047_Initial")]
-    partial class Initial
+    partial class MirageQueueDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -51,7 +48,7 @@ namespace MirageQueue.Postgres.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("InboundMessage");
+                    b.ToTable("InboundMessage", "mirage_queue");
                 });
 
             modelBuilder.Entity("MirageQueue.Messages.Entities.OutboundMessage", b =>
@@ -90,7 +87,7 @@ namespace MirageQueue.Postgres.Migrations
 
                     b.HasIndex("InboundMessageId");
 
-                    b.ToTable("OutboundMessage");
+                    b.ToTable("OutboundMessage", "mirage_queue");
                 });
 
             modelBuilder.Entity("MirageQueue.Messages.Entities.ScheduledInboundMessage", b =>
@@ -122,7 +119,7 @@ namespace MirageQueue.Postgres.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ScheduledInboundMessage");
+                    b.ToTable("ScheduledInboundMessage", "mirage_queue");
                 });
 
             modelBuilder.Entity("MirageQueue.Messages.Entities.OutboundMessage", b =>

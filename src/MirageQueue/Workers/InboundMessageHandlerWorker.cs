@@ -38,11 +38,20 @@ public abstract class InboundMessageHandlerWorker(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
-            await messageHandler.HandleQueuedInboundMessages(transaction);
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
 
-            await dbContext.SaveChangesAsync(stoppingToken);
-            await transaction.CommitAsync(stoppingToken);
+            try
+            {
+                await messageHandler.HandleQueuedInboundMessages(transaction);
+
+                await dbContext.SaveChangesAsync(stoppingToken);
+                await transaction.CommitAsync(stoppingToken);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Error processing inbound messages");
+                await transaction.RollbackAsync(stoppingToken);
+            }
 
             await Task.Delay(TimeSpan.FromSeconds(configuration.PoolingTime), stoppingToken);
         }

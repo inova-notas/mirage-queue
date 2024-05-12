@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -6,16 +6,16 @@ using MirageQueue.Consumers.Abstractions;
 
 namespace MirageQueue.Workers;
 
-public abstract class OutboundMessageHandlerWorker(
+public abstract class ScheduledMessageHandlerWorker(
     IServiceProvider serviceProvider,
-    ILogger<OutboundMessageHandlerWorker> logger,
+    ILogger<ScheduledMessageHandlerWorker> logger,
     MirageQueueConfiguration configuration)
     : BackgroundService, IMessageHandlerWorker
 {
     private readonly Random _random = new();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Starting {workerAmount} Outbound message workers...", configuration.WorkersQuantity);
+        logger.LogInformation("Starting {workerAmount} Scheduled message workers...", configuration.ScheduleWorkersQuantity);
 
         var tasks = new List<Task>();
 
@@ -43,7 +43,7 @@ public abstract class OutboundMessageHandlerWorker(
 
             try
             {
-                await messageHandler.HandleQueuedOutboundMessages(transaction);
+                await messageHandler.HandleScheduledMessages(transaction);
 
                 await dbContext.SaveChangesAsync(stoppingToken);
                 await transaction.CommitAsync(stoppingToken);
@@ -51,7 +51,7 @@ public abstract class OutboundMessageHandlerWorker(
             catch (Exception e)
             {
                 await transaction.RollbackAsync(stoppingToken);
-                logger.LogError(e, "Error processing outbound messages");
+                logger.LogError(e, "Error processing scheduled messages");
             }
 
             await Task.Delay(TimeSpan.FromSeconds(configuration.PoolingTime), stoppingToken);

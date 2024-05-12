@@ -8,6 +8,7 @@ public class ScheduledMessageConfiguration : IEntityTypeConfiguration<ScheduledI
 {
     public void Configure(EntityTypeBuilder<ScheduledInboundMessage> builder)
     {
+        builder.ToTable(nameof(ScheduledInboundMessage), "mirage_queue");
         builder.Property(x => x.Content)
             .HasColumnType("jsonb");
 
