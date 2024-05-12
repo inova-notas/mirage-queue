@@ -35,22 +35,26 @@ public class MessageHandler(
     {
         var messages = await GetOutboundMessage(dbTransaction);
         await outboundMessageRepository.SetTransaction(dbTransaction);
-        var tasks = messages.Select(s => CallOutboundDispatcher(s, dbTransaction)).ToList();
-        
+        var tasks = messages.Select(CallOutboundDispatcher).ToList();
         await Task.WhenAll(tasks);
+
+        foreach (var task in tasks.Select(x => x.Result))
+        {
+            await outboundMessageRepository.UpdateMessageStatus(task.MessageId, task.Status, dbTransaction);
+        }
     }
 
-    public async Task CallOutboundDispatcher(OutboundMessage message, IDbContextTransaction dbTransaction)
+    private async Task<(Guid MessageId, OutboundMessageStatus Status)> CallOutboundDispatcher(OutboundMessage message)
     {
         try
         {
             await dispatcher.ProcessOutboundMessage(message);
-            await outboundMessageRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Processed, dbTransaction);
+            return (message.Id, OutboundMessageStatus.Processed);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error while processing outbound message {MessageId}", message.Id);
-            await outboundMessageRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Failed, dbTransaction);
+            return (message.Id, OutboundMessageStatus.Failed);
         }
     }
 

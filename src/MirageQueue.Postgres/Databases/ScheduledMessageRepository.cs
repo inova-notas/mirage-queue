@@ -26,10 +26,7 @@ public class ScheduledMessageRepository : BaseRepository<MirageQueueDbContext, S
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
-
-        // var sql =
-        //     $"SELECT * FROM mirage_queue.\"{nameof(ScheduledInboundMessage)}\" WHERE \"{nameof(ScheduledInboundMessage.Status)}\" = {(int)ScheduledInboundMessageStatus.WaitingScheduledTime} AND \"{nameof(ScheduledInboundMessage.ExecuteAt)}\" <= now() FOR UPDATE SKIP LOCKED LIMIT {limit}";
-
+        
         var limitParam = new NpgsqlParameter("limitParam", limit);
         var nowParam = new NpgsqlParameter("nowParam", DateTime.UtcNow);
 

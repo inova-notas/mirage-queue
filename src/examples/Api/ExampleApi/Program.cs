@@ -13,6 +13,7 @@ builder.Services.AddMirageQueue(options =>
     options.PoolingTime = 1;
     options.WorkersQuantity = 10;
     options.ScheduleWorkersQuantity = 2;
+    options.AckMessageQuantity = 5;
 });
 
 builder.Services.AddMirageQueuePostgres(options =>
@@ -45,7 +46,7 @@ app.MapPost("/schedule", async ([FromServices] IPublisher publisher) =>
     },
         DateTime.UtcNow.AddSeconds(3));
 
-    //Console.WriteLine($"Scheduled at {DateTime.Now:hh:mm:ss}");
+    Console.WriteLine($"Scheduled at {DateTime.Now:hh:mm:ss}");
     return Results.Ok();
 });
 
