@@ -10,10 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMirageQueue();
 
-builder.Services.AddMirageQueuePostgres(options =>
-{
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+builder.Services.AddMirageQueuePostgres(builder.Configuration.GetConnectionString("DefaultConnection"));
 
 builder.Services.AddConsumersFromAssembly(typeof(TestMessageConsumer).Assembly);
 
@@ -43,5 +40,7 @@ app.MapPost("/schedule", async ([FromServices] IPublisher publisher) =>
     Console.WriteLine($"Scheduled at {DateTime.Now:hh:mm:ss}");
     return Results.Ok();
 });
+
+app.UseMirageQueue();
 
 app.Run();

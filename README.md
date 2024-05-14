@@ -2,8 +2,15 @@
 
 This library was intended to help us have the benefits of a message broker without having another infrastructure dependency, meaning it was designed to use a database as a message broker.
 
-The initial is pretty simple as you can see:
+###  Currently this library only supports PostgreSQL database 
 
+You can download the package via Nuget using the command below or the Nuget interface in the IDE.
+
+``` shell
+dotnet add package MirageQueue.Postgres
+```
+
+The initial is pretty simple as you can see:
 ``` csharp
 using MirageQueue;
 using MirageQueue.Postgres;
@@ -16,13 +23,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMirageQueue();
 
 //Configure Mirage Queue to use the postgres database 
-builder.Services.AddMirageQueuePostgres(options =>
-{
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+builder.Services.AddMirageQueuePostgres(builder.Configuration.GetConnectionString("DefaultConnection"));
 
 //Register all consumers in the given assembly
 builder.Services.AddConsumersFromAssembly(typeof(TestMessageConsumer).Assembly);
+
+
+var app = builder.Build();
+
+// Create the database and all tables needed to run the Mirage Queue
+app.UseMirageQueue();
+
+app.Run();
 ```
 
 Instead of registering all consumers from a specific assembly you can off course register one by one like this:
