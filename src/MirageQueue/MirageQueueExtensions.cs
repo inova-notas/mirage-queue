@@ -16,13 +16,19 @@ public static class MirageQueueExtensions
         WorkersQuantity = 5,
         ScheduleWorkersQuantity = 1
     };
-    public static void AddMirageQueue(this IServiceCollection services, Action<MirageQueueConfiguration> options)
+    
+    public static void AddMirageQueue(this IServiceCollection services)
     {
-        options.Invoke(Configuration);
         services.AddSingleton<Dispatcher>();
         services.AddScoped<IMessageHandler, MessageHandler>();
         services.AddScoped<IPublisher, Publisher>();
         services.AddSingleton(Configuration);
+    }
+    
+    public static void AddMirageQueue(this IServiceCollection services, Action<MirageQueueConfiguration> options)
+    {
+        options.Invoke(Configuration);
+        services.AddMirageQueue();
     }
 
     public static void AddConsumer<TConsumer>(this IServiceCollection services) where TConsumer : class, IConsumer

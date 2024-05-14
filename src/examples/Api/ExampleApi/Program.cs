@@ -8,13 +8,7 @@ using MirageQueue.Publishers.Abstractions;
 var builder = WebApplication.CreateBuilder(args);
 
 
-builder.Services.AddMirageQueue(options =>
-{
-    options.PoolingTime = 1;
-    options.WorkersQuantity = 10;
-    options.ScheduleWorkersQuantity = 2;
-    options.AckMessageQuantity = 5;
-});
+builder.Services.AddMirageQueue();
 
 builder.Services.AddMirageQueuePostgres(options =>
 {
