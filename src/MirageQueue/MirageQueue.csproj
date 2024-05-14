@@ -1,10 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">    
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <Version>1.1.1</Version>
+        <Version>1.2.0</Version>
+        <Authors>Inova Notas, Hederson Boechat</Authors>
+        <Description>This library was intended to help us have the benefits of a message broker without having another infrastructure dependency, meaning it was designed to use a database as a message broker.</Description>
+        <RepositoryUrl>https://github.com/inova-notas/mirage-queue</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageTags>datbase, queue, library</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
@@ -13,6 +18,11 @@
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
       <PackageReference Include="NewId" Version="4.0.1" />
       <PackageReference Include="Polly" Version="8.2.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Add a README.md next to the csproj -->
+        <None Include="../../README.md" Pack="true" PackagePath="" />
     </ItemGroup>
 
 </Project>

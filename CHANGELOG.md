@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.2.0"></a>
+## [1.2.0](https://www.github.com/inova-notas/mirage-queue/releases/tag/v1.2.0) (2024-05-14)
+
+### Features
+
+* add scheduled message support ([65b803b](https://www.github.com/inova-notas/mirage-queue/commit/65b803be4e7d0ea069cf028f2ced54812e2decfb))
+
+### Bug Fixes
+
+* changed to not track entity message and update using raw sql ([4129ede](https://www.github.com/inova-notas/mirage-queue/commit/4129ede7ec8a3a4b8501a262d5ac90ed986e2c79))
+* not use db context concurrently when update OutBoundMessage Entity ([968bf9f](https://www.github.com/inova-notas/mirage-queue/commit/968bf9fa8073e662d93911f12f7e26f6938b7608))
+
 <a name="1.1.1"></a>
 ## [1.1.1](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.1.1) (2023-12-28)
 
