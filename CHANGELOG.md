@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.3.0"></a>
+## [1.3.0](https://www.github.com/inova-notas/mirage-queue/releases/tag/v1.3.0) (2024-05-14)
+
+### Features
+
+* Auto run migration when call the UseMirageQueue extension method ([74ef7f1](https://www.github.com/inova-notas/mirage-queue/commit/74ef7f17189a2fd5e43d1693defd173c48bcbdba))
+
 <a name="1.2.0"></a>
 ## [1.2.0](https://www.github.com/inova-notas/mirage-queue/releases/tag/v1.2.0) (2024-05-14)
 
