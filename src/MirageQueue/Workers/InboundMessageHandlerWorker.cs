@@ -25,6 +25,8 @@ public abstract class InboundMessageHandlerWorker(
         }
 
         await Task.WhenAll(tasks.ToArray());
+        
+        logger.LogInformation("All Inbound message workers stopped");
     }
 
     private async Task Worker(Guid workerId, CancellationToken stoppingToken)
@@ -55,6 +57,8 @@ public abstract class InboundMessageHandlerWorker(
 
             await Task.Delay(TimeSpan.FromSeconds(configuration.PoolingTime), stoppingToken);
         }
+        
+        logger.LogInformation("Stopped Inbound message worker {WorkerId}", workerId);
     }
 
     public abstract DbContext GetContext(AsyncServiceScope scope);

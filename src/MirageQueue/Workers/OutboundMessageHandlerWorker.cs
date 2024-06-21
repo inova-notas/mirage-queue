@@ -25,6 +25,8 @@ public abstract class OutboundMessageHandlerWorker(
         }
 
         await Task.WhenAll(tasks.ToArray());
+        
+        logger.LogInformation("All Outbound message workers stopped");
     }
 
     private async Task Worker(Guid workerId, CancellationToken stoppingToken)
@@ -56,6 +58,8 @@ public abstract class OutboundMessageHandlerWorker(
 
             await Task.Delay(TimeSpan.FromSeconds(configuration.PoolingTime), stoppingToken);
         }
+        
+        logger.LogInformation("Stopped Outbound message worker {WorkerId}", workerId);
     }
 
     public abstract DbContext GetContext(AsyncServiceScope scope);
