@@ -37,4 +37,4 @@ jobs:
 
       - name: Push Nuget package
         working-directory: ${{ env.WORKDIR }}
-        run: dotnet nuget push ${{env.NUGET_OUTPUT}}  --api-key ${{ secrets.NUGET_API_KEY }} --source ${{env.NUGET_SOURCE}}}
+        run: dotnet nuget push ${{env.NUGET_OUTPUT}}  --api-key ${{ secrets.NUGET_API_KEY }} --source ${{env.NUGET_SOURCE}}
