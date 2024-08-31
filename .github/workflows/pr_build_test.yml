@@ -3,6 +3,9 @@ name: .NET
 on:
   pull_request:
     branches: [ "main" ]
+    
+env:
+  workdir: ./src/
 
 jobs:
   build:
@@ -16,8 +19,11 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Restore dependencies
+        working-directory: ${{ env.workdir }}
         run: dotnet restore
       - name: Build
+        working-directory: ${{ env.workdir }}
         run: dotnet build --no-restore
       - name: Test
+        working-directory: ${{ env.workdir }}
         run: dotnet test --no-build --verbosity normal
