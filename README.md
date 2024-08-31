@@ -62,7 +62,7 @@ public class TestMessageConsumer : IConsumer<TestMessage>
 }
 ```
 
-This library offers two methods for message delivery to the consumer. The first method allows immediate consumption of the message right after it's sent. The second method allows you to schedule the message for future processing. You can access the **IPublisher** interface through dependency injection.
+This library provides two ways to deliver messages to the consumer. The first option lets the consumer receive and process the message immediately after it’s sent. The second option allows you to schedule the message for processing at a later time. You can use the **IPublisher** interface via dependency injection.
 
 ``` csharp
 public class MyService(IPublisher publisher){
