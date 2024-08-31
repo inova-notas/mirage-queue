@@ -1,4 +1,4 @@
-name: Create and publish MirageQueue package
+name: (MirageQueue) Create and publish package
 
 env:
   WORKDIR: ./src/MirageQueue/
