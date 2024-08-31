@@ -5,7 +5,7 @@ env:
   DOTNET_VERSION: '8.0.x'
   NUGET_OUTPUT: ./pkg-nuget
   CONFIG: Release
-  NUGET_SOURCE: https://api.nuget.org/v3/index.json
+  NUGET_SOURCE: 'https://api.nuget.org/v3/index.json'
 
 on:
   workflow_dispatch:
