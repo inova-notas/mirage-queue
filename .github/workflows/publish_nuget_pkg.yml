@@ -1,0 +1,43 @@
+name: Publish Nuget Pkg (Reusable)
+on:
+  workflow_call:
+    inputs:
+      WORKDIR:
+        description: 'Project directory'
+        required: true
+        type: string
+        
+env:
+  DOTNET_VERSION: '8.0.x'
+  NUGET_OUTPUT: './pkg-nuget/'
+  CONFIG: 'Release'
+  NUGET_SOURCE: 'https://api.nuget.org/v3/index.json'
+  
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        working-directory: ${{ inputs.WORKDIR }}
+        run: dotnet restore
+
+      - name: Build
+        working-directory: ${{ inputs.WORKDIR }}
+        run: dotnet build --no-restore --configuration ${{ env.CONFIG }}
+
+      - name: Pack Nuget package
+        working-directory: ${{ inputs.WORKDIR }}
+        run: dotnet pack --output ${{env.NUGET_OUTPUT}} --configuration ${{ env.CONFIG }}
+
+      - name: Push Nuget package
+        working-directory: ${{ inputs.WORKDIR }}
+        run: dotnet nuget push ${{env.NUGET_OUTPUT}}  --api-key ${{ secrets.NUGET_API_KEY }} --source ${{env.NUGET_SOURCE}}
