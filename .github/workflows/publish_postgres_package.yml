@@ -1,0 +1,40 @@
+name: Create and publish MirageQueue package
+
+env:
+  WORKDIR: ./src/MirageQueue.Postgres/
+  DOTNET_VERSION: '8.0.x'
+  NUGET_OUTPUT: ./pkg-nuget
+  CONFIG: Release
+  NUGET_SOURCE: https://api.nuget.org/v3/index.json
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        working-directory: ${{ env.WORKDIR }}
+        run: dotnet restore
+
+      - name: Build
+        working-directory: ${{ env.WORKDIR }}
+        run: dotnet build --no-restore --configuration ${{ env.CONFIG }}
+
+      - name: Pack Nuget package
+        working-directory: ${{ env.WORKDIR }}
+        run: dotnet pack --output ${{env.NUGET_OUTPUT}} --configuration ${{ env.CONFIG }}
+
+      - name: Push Nuget package
+        working-directory: ${{ env.WORKDIR }}
+        run: dotnet nuget push ${{env.NUGET_OUTPUT}}  --api-key ${{ secrets.NUGET_API_KEY }} --source ${{NUGET_SOURCE}}
