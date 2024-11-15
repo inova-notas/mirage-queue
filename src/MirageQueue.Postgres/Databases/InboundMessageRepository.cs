@@ -10,27 +10,25 @@ namespace MirageQueue.Postgres.Databases;
 
 public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, InboundMessage>, IInboundMessageRepository
 {
-    private readonly MirageQueueDbContext _dbContext;
-    private NpgsqlParameter statusParam;
+    readonly MirageQueueDbContext _dbContext;
+    readonly NpgsqlParameter _statusParam;
     
     public InboundMessageRepository(MirageQueueDbContext dbContext) : base(dbContext)
     {
         _dbContext = dbContext;
-        statusParam = new NpgsqlParameter("statusParam", DbType.Int32)
+        _statusParam = new NpgsqlParameter("statusParam", DbType.Int32)
         {
             Value = (int)InboundMessageStatus.New
         };
     }
 
-    public async Task<List<InboundMessage>> GetQueuedMessages(int limit, IDbContextTransaction? transaction = default)
+    public async Task<List<InboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = default)
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
-
-        var limitParam = new NpgsqlParameter("limitParam", limit);
         
         return await _dbContext.Set<InboundMessage>()
-            .FromSql($"SELECT * FROM mirage_queue.\"InboundMessage\" WHERE \"Status\" = {statusParam} FOR UPDATE SKIP LOCKED LIMIT {limitParam}")
+            .FromSql($"SELECT * FROM mirage_queue.\"InboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT 1")
             .AsNoTracking()
             .ToListAsync();
     }

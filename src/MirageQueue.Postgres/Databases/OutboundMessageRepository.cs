@@ -9,21 +9,19 @@ namespace MirageQueue.Postgres.Databases;
 
 public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, OutboundMessage>, IOutboundMessageRepository
 {
-    private readonly MirageQueueDbContext _dbContext;
-    private readonly NpgsqlParameter _statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.New);
+    readonly MirageQueueDbContext _dbContext;
+    readonly NpgsqlParameter _statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.New);
 
     public OutboundMessageRepository(MirageQueueDbContext dbContext) : base(dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public async Task<List<OutboundMessage>> GetQueuedMessages(int limit, IDbContextTransaction? transaction = default)
+    public async Task<List<OutboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = default)
     {
 
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
-        
-        var limitParam = new NpgsqlParameter("limitParam", limit);
 
         return await _dbContext.Set<OutboundMessage>()
             .FromSql($"SELECT * FROM mirage_queue.\"OutboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT 1")

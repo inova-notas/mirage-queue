@@ -10,28 +10,27 @@ namespace MirageQueue.Postgres.Databases;
 
 public class ScheduledMessageRepository : BaseRepository<MirageQueueDbContext, ScheduledInboundMessage>, IScheduledMessageRepository
 {
-    private readonly MirageQueueDbContext _dbContext;
-    private NpgsqlParameter statusParam;
+    readonly MirageQueueDbContext _dbContext;
+    readonly NpgsqlParameter _statusParam;
 
     public ScheduledMessageRepository(MirageQueueDbContext dbContext) : base(dbContext)
     {
         _dbContext = dbContext;
-        statusParam = new NpgsqlParameter("statusParam", DbType.Int32)
+        _statusParam = new NpgsqlParameter("statusParam", DbType.Int32)
         {
             Value = (int)ScheduledInboundMessageStatus.WaitingScheduledTime
         };
     }
 
-    public async Task<List<ScheduledInboundMessage>> GetScheduledMessages(int limit, IDbContextTransaction? transaction = default)
+    public async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction? transaction = default)
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
         
-        var limitParam = new NpgsqlParameter("limitParam", limit);
         var nowParam = new NpgsqlParameter("nowParam", DateTime.UtcNow);
 
         return await _dbContext.Set<ScheduledInboundMessage>()
-            .FromSql($"SELECT * FROM mirage_queue.\"ScheduledInboundMessage\" WHERE \"Status\" = {statusParam} AND \"ExecuteAt\" <= {nowParam} FOR UPDATE SKIP LOCKED LIMIT {limitParam}")
+            .FromSql($"SELECT * FROM mirage_queue.\"ScheduledInboundMessage\" WHERE \"Status\" = {_statusParam} AND \"ExecuteAt\" <= {nowParam} FOR UPDATE SKIP LOCKED LIMIT 1")
             .AsNoTracking()
             .ToListAsync();
     }
