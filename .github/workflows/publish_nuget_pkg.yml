@@ -6,6 +6,10 @@ on:
         description: 'Project directory'
         required: true
         type: string
+      PACKAGE_NAME:
+        description: 'Custom package name'
+        required: true
+        type: string
         
 env:
   DOTNET_VERSION: '8.0.x'
