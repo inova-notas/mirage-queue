@@ -40,7 +40,7 @@ jobs:
 
       - name: Pack Nuget package
         working-directory: ${{ inputs.WORKDIR }}
-        run: dotnet pack --output ${{env.NUGET_OUTPUT}} --configuration ${{ env.CONFIG }}
+        run: dotnet pack --output ${{env.NUGET_OUTPUT}} --configuration ${{ env.CONFIG }} --package-id ${{ inputs.PACKAGE_NAME }}
 
       - name: Push Nuget package
         working-directory: ${{ inputs.WORKDIR }}
