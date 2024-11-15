@@ -8,8 +8,8 @@ namespace MirageQueue.Publishers;
 
 public class Publisher : IPublisher
 {
-    private readonly IInboundMessageRepository _inboundMessageRepository;
-    private readonly IScheduledMessageRepository _scheduledMessageRepository;
+    readonly IInboundMessageRepository _inboundMessageRepository;
+    readonly IScheduledMessageRepository _scheduledMessageRepository;
 
     public Publisher(IInboundMessageRepository inboundMessageRepository,
         IScheduledMessageRepository scheduledMessageRepository)

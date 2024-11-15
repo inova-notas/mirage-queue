@@ -1,6 +1,5 @@
 using ExampleApi;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MirageQueue;
 using MirageQueue.Postgres;
 using MirageQueue.Publishers.Abstractions;

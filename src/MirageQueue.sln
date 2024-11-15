@@ -15,6 +15,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExampleApi", "examples\Api\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{D7CC27A4-A87E-41D7-88A8-750A0AA77106}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "0.SolutionItems", "0.SolutionItems", "{AA8A80EE-6B8B-4824-9B77-D49749B100C7}"
+	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\publish_base_package.yml = ..\.github\workflows\publish_base_package.yml
+		..\.github\workflows\pr_build_test.yml = ..\.github\workflows\pr_build_test.yml
+		..\.github\workflows\publish_nuget_pkg.yml = ..\.github\workflows\publish_nuget_pkg.yml
+		..\.github\workflows\publish_postgres_package.yml = ..\.github\workflows\publish_postgres_package.yml
+		..\.github\dependabot.yml = ..\.github\dependabot.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
