@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="2.0.0"></a>
+## [2.0.0](https://www.github.com/Beeposts/mirage-queue/releases/tag/v2.0.0) (2024-11-15)
+
+### Breaking Changes
+
+* updated to dotnet 9 ([bb085b3](https://www.github.com/Beeposts/mirage-queue/commit/bb085b3e8693747fa6f807da18cf94e460160ea8))
+
 <a name="1.4.0"></a>
 ## [1.4.0](https://www.github.com/Beeposts/mirage-queue/releases/tag/v1.4.0) (2024-08-31)
 
