@@ -1,4 +1,4 @@
-name: Publish Nuget package
+name: (MirageQueue) Create and publish package
 
 on:
   workflow_dispatch:
