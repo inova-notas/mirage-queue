@@ -10,7 +10,7 @@ namespace MirageQueue.Postgres.Databases;
 public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, OutboundMessage>, IOutboundMessageRepository
 {
     private readonly MirageQueueDbContext _dbContext;
-    private NpgsqlParameter statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.New);
+    private readonly NpgsqlParameter _statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.New);
 
     public OutboundMessageRepository(MirageQueueDbContext dbContext) : base(dbContext)
     {
@@ -26,7 +26,7 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         var limitParam = new NpgsqlParameter("limitParam", limit);
 
         return await _dbContext.Set<OutboundMessage>()
-            .FromSql($"SELECT * FROM mirage_queue.\"OutboundMessage\" WHERE \"Status\" = {statusParam} FOR UPDATE SKIP LOCKED LIMIT {limitParam}")
+            .FromSql($"SELECT * FROM mirage_queue.\"OutboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT 1")
             .AsNoTracking()
             .ToListAsync();
     }

@@ -18,17 +18,17 @@ public class MessageHandler(
 {
     private async Task<List<InboundMessage>> GetInboundMessages(IDbContextTransaction dbTransaction)
     {
-        return await inboundMessageRepository.GetQueuedMessages(configuration.AckMessageQuantity, dbTransaction);
+        return await inboundMessageRepository.GetQueuedMessages(dbTransaction);
     }
 
     private async Task<List<OutboundMessage>> GetOutboundMessage(IDbContextTransaction dbTransaction)
     {
-        return await outboundMessageRepository.GetQueuedMessages(configuration.AckMessageQuantity, dbTransaction);
+        return await outboundMessageRepository.GetQueuedMessages(dbTransaction);
     }
     
     private async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction dbTransaction)
     {
-        return await scheduledMessageRepository.GetScheduledMessages(configuration.AckMessageQuantity, dbTransaction);
+        return await scheduledMessageRepository.GetScheduledMessages(dbTransaction);
     }
 
     public async Task HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction)

@@ -12,7 +12,6 @@ public static class MirageQueueExtensions
     private static readonly MirageQueueConfiguration Configuration = new MirageQueueConfiguration
     {
         PoolingTime = 10,
-        AckMessageQuantity = 1,
         WorkersQuantity = 5,
         ScheduleWorkersQuantity = 1
     };
