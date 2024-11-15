@@ -7,6 +7,7 @@
         <Authors>Inova Notas, Hederson Boechat</Authors>
         <Description>This library was intended to help us have the benefits of a message broker without having another infrastructure dependency, meaning it was designed to use a database as a message broker.</Description>
         <RepositoryUrl>https://github.com/inova-notas/mirage-queue</RepositoryUrl>
+        <PackageId>InovaNotas.MirageQueue.PostgreSQL</PackageId>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageTags>datbase, queue, library</PackageTags>

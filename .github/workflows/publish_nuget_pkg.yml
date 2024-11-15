@@ -6,10 +6,6 @@ on:
         description: 'Project directory'
         required: true
         type: string
-      PACKAGE_NAME:
-        description: 'Custom package name'
-        required: true
-        type: string
         
 env:
   DOTNET_VERSION: '9.0.x'
@@ -40,7 +36,7 @@ jobs:
 
       - name: Pack Nuget package
         working-directory: ${{ inputs.WORKDIR }}
-        run: dotnet pack --output ${{env.NUGET_OUTPUT}} --configuration ${{ env.CONFIG }} --package-id ${{ inputs.PACKAGE_NAME }}
+        run: dotnet pack --output ${{env.NUGET_OUTPUT}} --configuration ${{ env.CONFIG }}
 
       - name: Push Nuget package
         working-directory: ${{ inputs.WORKDIR }}

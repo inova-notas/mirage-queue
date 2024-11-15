@@ -9,5 +9,4 @@ jobs:
     uses: ./.github/workflows/publish_nuget_pkg.yml
     with:
       WORKDIR: './src/MirageQueue/'
-      PACKAGE_NAME: 'Inova.MirageQueue'
     secrets: inherit
