@@ -7,7 +7,7 @@ This library was intended to help us have the benefits of a message broker witho
 You can download the package via Nuget using the command below or the Nuget interface in the IDE.
 
 ``` shell
-dotnet add package InovaNotas.MirageQueue.Postgres
+dotnet add package InovaNotas.MirageQueue.PostgreSQL
 ```
 
 The initial is pretty simple as you can see:
