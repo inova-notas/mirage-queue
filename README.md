@@ -62,7 +62,19 @@ public class TestMessageConsumer : IConsumer<TestMessage>
 }
 ```
 
-This library provides two ways to deliver messages to the consumer. The first option lets the consumer receive and process the message immediately after it’s sent. The second option allows you to schedule the message for processing at a later time. You can use the **IPublisher** interface via dependency injection.
+## Message Delivery Options
+
+This library provides two methods for delivering messages to the consumer:
+
+1. **Instant Processing**:  
+   The consumer can receive and process the message immediately after it’s sent.
+
+2. **Scheduled Processing**:  
+   You can schedule the message to be processed at a specified time in the future.
+
+### Usage
+
+To use these features, inject the `IPublisher` interface via dependency injection
 
 ``` csharp
 public class MyService(IPublisher publisher){
