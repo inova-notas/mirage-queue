@@ -1,16 +1,21 @@
 # Mirage Queue
 
-This library was intended to help us have the benefits of a message broker without having another infrastructure dependency, meaning it was designed to use a database as a message broker.
+Mirage Queue is a library designed to provide the benefits of a message broker without introducing additional 
+infrastructure dependencies. Instead, it leverages a database to function as a message broker.
 
-###  Currently this library only supports PostgreSQL database 
+> **Note**: Currently, this library only supports **PostgreSQL** databases. 
 
-You can download the package via Nuget using the command below or the Nuget interface in the IDE.
+## Installation
+
+You can install the package via NuGet using the following command or through the NuGet interface in your IDE:
 
 ``` shell
 dotnet add package InovaNotas.MirageQueue.PostgreSQL
 ```
 
-The initial is pretty simple as you can see:
+## Getting Started
+
+Setting up Mirage Queue is straightforward. Here’s an example of how to configure it in your application:
 ``` csharp
 using MirageQueue;
 using MirageQueue.Postgres;
@@ -36,14 +41,15 @@ app.UseMirageQueue();
 
 app.Run();
 ```
-
-Instead of registering all consumers from a specific assembly you can off course register one by one like this:
+## Registering Consumers
+Instead of registering all consumers from an assembly, you can register them individually like this:
 
 ``` csharp
 builder.Services.AddConsumer<TestMessageConsumer>();
 ```
-
-To create a consumer you need to implement the interface **IConsumer** with the type parameter of the expected message that you want to receive, and you can have multiple consumers receiving the same message type.
+## Creating a Consumer
+To create a consumer, implement the `IConsumer<T>` interface, where `T` is the type of message you want to process. 
+You can have multiple consumers handling the same message type.
 
 ``` csharp
 using MirageQueue.Consumers.Abstractions;
