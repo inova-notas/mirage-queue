@@ -4,6 +4,9 @@ using MirageQueue.Consumers.Abstractions;
 using MirageQueue.Publishers;
 using MirageQueue.Publishers.Abstractions;
 using System.Reflection;
+using System.Threading.Channels;
+using MirageQueue.Messages.Entities;
+using MirageQueue.Workers;
 
 namespace MirageQueue;
 
@@ -11,9 +14,10 @@ public static class MirageQueueExtensions
 {
     private static readonly MirageQueueConfiguration Configuration = new MirageQueueConfiguration
     {
-        PoolingTime = 10,
-        WorkersQuantity = 5,
-        ScheduleWorkersQuantity = 1
+        PoolingScheduleTime = 1000,
+        PoolingInboundTime = 500,
+        PoolingOutboundTime = 500,
+        WorkersQuantity = 20,
     };
     
     public static void AddMirageQueue(this IServiceCollection services)
@@ -22,6 +26,14 @@ public static class MirageQueueExtensions
         services.AddScoped<IMessageHandler, MessageHandler>();
         services.AddScoped<IPublisher, Publisher>();
         services.AddSingleton(Configuration);
+        services.AddSingleton<Channel<OutboundMessage>>(_ => 
+            Channel.CreateUnbounded<OutboundMessage>(new UnboundedChannelOptions
+            {
+                AllowSynchronousContinuations = false,
+                SingleWriter = true,
+                SingleReader = false
+            }));
+        services.AddHostedService<ProcessOutboundMessagesWorker>();
     }
     
     public static void AddMirageQueue(this IServiceCollection services, Action<MirageQueueConfiguration> options)

@@ -6,6 +6,6 @@ namespace MirageQueue.Messages.Repositories;
 
 public interface IOutboundMessageRepository : IRepository<OutboundMessage>
 {
-    public Task<List<OutboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = default);
-    public Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, IDbContextTransaction? transaction = default);
+    public Task<List<OutboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = null, int limit = 10);
+    public Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, IDbContextTransaction? transaction = null);
 }

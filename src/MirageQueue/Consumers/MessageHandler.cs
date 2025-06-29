@@ -1,4 +1,5 @@
-﻿using MassTransit;
+﻿using System.Threading.Channels;
+using MassTransit;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Consumers.Abstractions;
@@ -13,48 +14,62 @@ public class MessageHandler(
     IInboundMessageRepository inboundMessageRepository,
     IScheduledMessageRepository scheduledMessageRepository,
     Dispatcher dispatcher,
-    MirageQueueConfiguration configuration)
+    MirageQueueConfiguration configuration,
+    Channel<OutboundMessage> outboundMessageChannel)
     : IMessageHandler
 {
     private async Task<List<InboundMessage>> GetInboundMessages(IDbContextTransaction dbTransaction)
     {
-        return await inboundMessageRepository.GetQueuedMessages(dbTransaction);
+        return await inboundMessageRepository.GetQueuedMessages(dbTransaction, configuration.WorkersQuantity);
     }
 
     private async Task<List<OutboundMessage>> GetOutboundMessage(IDbContextTransaction dbTransaction)
     {
-        return await outboundMessageRepository.GetQueuedMessages(dbTransaction);
+        return await outboundMessageRepository.GetQueuedMessages(dbTransaction, configuration.WorkersQuantity);
     }
     
     private async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction dbTransaction)
     {
-        return await scheduledMessageRepository.GetScheduledMessages(dbTransaction);
+        return await scheduledMessageRepository.GetScheduledMessages(dbTransaction, configuration.WorkersQuantity);
     }
 
-    public async Task HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction)
+    public async Task<List<OutboundMessage>> HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction)
     {
         var messages = await GetOutboundMessage(dbTransaction);
         await outboundMessageRepository.SetTransaction(dbTransaction);
-        var tasks = messages.Select(CallOutboundDispatcher).ToList();
-        await Task.WhenAll(tasks);
 
-        foreach (var task in tasks.Select(x => x.Result))
+        foreach (var message in messages)
         {
-            await outboundMessageRepository.UpdateMessageStatus(task.MessageId, task.Status, dbTransaction);
+            await outboundMessageRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Processing, dbTransaction);
+        }
+
+        return messages;
+    }
+    
+    public async Task AddOutboundMessageToChannel(OutboundMessage message)
+    {
+        try
+        {
+            await outboundMessageChannel.Writer.WriteAsync(message);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error while adding outbound message to channel {MessageId}", message.Id);
+            throw;
         }
     }
 
-    private async Task<(Guid MessageId, OutboundMessageStatus Status)> CallOutboundDispatcher(OutboundMessage message)
+    public async Task<(Guid MessageId, OutboundMessageStatus Status, Exception? Exception)> ProcessOutboundMessage(OutboundMessage message)
     {
         try
         {
             await dispatcher.ProcessOutboundMessage(message);
-            return (message.Id, OutboundMessageStatus.Processed);
+            return (message.Id, OutboundMessageStatus.Processed, null);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error while processing outbound message {MessageId}", message.Id);
-            return (message.Id, OutboundMessageStatus.Failed);
+            return (message.Id, OutboundMessageStatus.Failed, e);
         }
     }
 

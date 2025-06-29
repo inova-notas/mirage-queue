@@ -6,6 +6,6 @@ namespace MirageQueue.Messages.Repositories;
 
 public interface IScheduledMessageRepository : IRepository<ScheduledInboundMessage>
 {
-    public Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction? transaction = default);
-    public Task UpdateMessageStatus(Guid id, ScheduledInboundMessageStatus status, IDbContextTransaction? transaction = default);
+    public Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction? transaction = null, int limit = 10);
+    public Task UpdateMessageStatus(Guid id, ScheduledInboundMessageStatus status, IDbContextTransaction? transaction = null);
 }

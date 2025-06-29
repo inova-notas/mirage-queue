@@ -15,25 +15,9 @@ public abstract class ScheduledMessageHandlerWorker(
     private readonly Random _random = new();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Starting {workerAmount} Scheduled message workers...", configuration.ScheduleWorkersQuantity);
-
-        var tasks = new List<Task>();
-
-        for (var i = 0; i < configuration.WorkersQuantity; i++)
-        {
-            tasks.Add(Worker(Guid.NewGuid(), stoppingToken));
-        }
-
-        await Task.WhenAll(tasks.ToArray());
-        
-        logger.LogInformation("All Scheduled message workers stopped");
-    }
-
-    private async Task Worker(Guid workerId, CancellationToken stoppingToken)
-    {
         await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(10, 300)), stoppingToken);
-        logger.LogInformation("Started Outbound message worker {WorkerId}", workerId);
-
+        logger.LogInformation("Started Scheduled message worker");
+        
         await using var scope = serviceProvider.CreateAsyncScope();
         var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
         var dbContext = GetContext(scope);
@@ -46,7 +30,6 @@ public abstract class ScheduledMessageHandlerWorker(
             try
             {
                 await messageHandler.HandleScheduledMessages(transaction);
-
                 await dbContext.SaveChangesAsync(stoppingToken);
                 await transaction.CommitAsync(stoppingToken);
             }
@@ -56,10 +39,10 @@ public abstract class ScheduledMessageHandlerWorker(
                 logger.LogError(e, "Error processing scheduled messages");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(configuration.PoolingTime), stoppingToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(configuration.PoolingScheduleTime), stoppingToken);
         }
         
-        logger.LogInformation("Stopped Scheduled message worker {WorkerId}", workerId);
+        logger.LogInformation("Stopped Scheduled message worker");
     }
 
     public abstract DbContext GetContext(AsyncServiceScope scope);
