@@ -3,7 +3,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <Version>2.0.1</Version>
+        <Version>2.1.0</Version>
         <Authors>Inova Notas, Hederson Boechat</Authors>
         <Description>This library was intended to help us have the benefits of a message broker without having another infrastructure dependency, meaning it was designed to use a database as a message broker.</Description>
         <RepositoryUrl>https://github.com/inova-notas/mirage-queue</RepositoryUrl>
@@ -14,7 +14,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="InovaNotas.MirageQueue" Version="2.0.1" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -32,6 +31,10 @@
 
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\MirageQueue\MirageQueue.csproj" />
     </ItemGroup>
 
 </Project>
