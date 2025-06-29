@@ -22,7 +22,7 @@ public class ScheduledMessageRepository : BaseRepository<MirageQueueDbContext, S
         };
     }
 
-    public async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction? transaction = default)
+    public async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction? transaction = null, int limit = 10)
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
@@ -30,7 +30,7 @@ public class ScheduledMessageRepository : BaseRepository<MirageQueueDbContext, S
         var nowParam = new NpgsqlParameter("nowParam", DateTime.UtcNow);
 
         return await _dbContext.Set<ScheduledInboundMessage>()
-            .FromSql($"SELECT * FROM mirage_queue.\"ScheduledInboundMessage\" WHERE \"Status\" = {_statusParam} AND \"ExecuteAt\" <= {nowParam} FOR UPDATE SKIP LOCKED LIMIT 1")
+            .FromSql($"SELECT * FROM mirage_queue.\"ScheduledInboundMessage\" WHERE \"Status\" = {_statusParam} AND \"ExecuteAt\" <= {nowParam} FOR UPDATE SKIP LOCKED LIMIT {limit}")
             .AsNoTracking()
             .ToListAsync();
     }

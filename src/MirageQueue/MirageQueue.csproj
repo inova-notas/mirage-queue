@@ -10,7 +10,7 @@
         <PackageId>InovaNotas.MirageQueue</PackageId>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageTags>datbase, queue, library</PackageTags>
+        <PackageTags>database, queue, library, postgres, pub/sub</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

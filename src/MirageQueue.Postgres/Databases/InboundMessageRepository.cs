@@ -22,13 +22,13 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
         };
     }
 
-    public async Task<List<InboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = default)
+    public async Task<List<InboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = null, int limit = 10)
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
         
         return await _dbContext.Set<InboundMessage>()
-            .FromSql($"SELECT * FROM mirage_queue.\"InboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT 1")
+            .FromSql($"SELECT * FROM mirage_queue.\"InboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT {limit}")
             .AsNoTracking()
             .ToListAsync();
     }

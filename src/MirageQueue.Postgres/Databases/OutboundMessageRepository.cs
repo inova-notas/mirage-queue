@@ -17,14 +17,14 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         _dbContext = dbContext;
     }
 
-    public async Task<List<OutboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = default)
+    public async Task<List<OutboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = null, int limit = 10)
     {
 
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
 
         return await _dbContext.Set<OutboundMessage>()
-            .FromSql($"SELECT * FROM mirage_queue.\"OutboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT 1")
+            .FromSql($"SELECT * FROM mirage_queue.\"OutboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT {limit}")
             .AsNoTracking()
             .ToListAsync();
     }
