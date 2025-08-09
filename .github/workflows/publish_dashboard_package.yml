@@ -1,0 +1,12 @@
+name: (MirageQueue.Dashboard) Create and publish package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-dashboard-package:
+    name: Publish MirageQueue.Dashboard package
+    uses: ./.github/workflows/publish_nuget_pkg.yml
+    with:
+      WORKDIR: './src/MirageQueue.Dashboard/'
+    secrets: inherit

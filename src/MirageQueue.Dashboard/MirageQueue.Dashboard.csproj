@@ -14,7 +14,12 @@
         <PackageTags>database, queue, library, postgres, dashboard, ui, web, monitoring</PackageTags>
     </PropertyGroup>
 
-    <ItemGroup>
+    <!-- Conditional References: Use local projects for Debug, NuGet packages for Release -->
+    <ItemGroup Condition="'$(UseLocalProjects)' == 'true'">
+        <ProjectReference Include="../MirageQueue/MirageQueue.csproj" />
+    </ItemGroup>
+    
+    <ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
         <PackageReference Include="InovaNotas.MirageQueue" Version="2.2.0" />
     </ItemGroup>
 

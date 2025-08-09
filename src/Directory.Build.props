@@ -1,0 +1,14 @@
+<Project>
+    <!-- Solution-wide properties -->
+    <PropertyGroup>
+        <!-- Control whether to use local project references or NuGet packages -->
+        <!-- Defaults to true for Debug configuration, false for Release -->
+        <UseLocalProjects Condition="'$(UseLocalProjects)' == '' AND '$(Configuration)' == 'Debug'">true</UseLocalProjects>
+        <UseLocalProjects Condition="'$(UseLocalProjects)' == '' AND '$(Configuration)' != 'Debug'">false</UseLocalProjects>
+    </PropertyGroup>
+    
+    <!-- Display the current reference mode -->
+    <Target Name="ShowReferenceMode" BeforeTargets="Build">
+        <Message Text="Building with UseLocalProjects=$(UseLocalProjects), Configuration=$(Configuration)" Importance="high" />
+    </Target>
+</Project>

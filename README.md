@@ -7,11 +7,19 @@ infrastructure dependencies. Instead, it leverages a database to function as a m
 
 ## Installation
 
-You can install the package via NuGet using the following command or through the NuGet interface in your IDE:
+You can install the required packages via NuGet:
 
+### Core Package
 ``` shell
-dotnet add package InovaNotas.MirageQueue.PostgreSQL
+dotnet add package InovaNotas.MirageQueue.Postgres
 ```
+
+### Optional Dashboard (Recommended)
+``` shell
+dotnet add package InovaNotas.MirageQueue.Dashboard
+```
+
+The dashboard provides a web-based interface to monitor and manage your message queues, similar to Hangfire's dashboard.
 
 ## Getting Started
 
@@ -100,3 +108,93 @@ public class MyService(IPublisher publisher){
     }
 }
 ```
+
+## Dashboard Integration
+
+The MirageQueue Dashboard provides a comprehensive web interface for monitoring and managing your message queues.
+
+### Features
+
+- **Real-time Statistics**: Live metrics for inbound, outbound, and scheduled messages
+- **Message Management**: Browse, filter, and search through all message types
+- **Message Details**: View complete message information with JSON prettification
+- **Interactive Tooltips**: Hover over truncated message content to see full payload
+- **Advanced Filtering**: Filter outbound messages by contract and endpoint
+- **Requeue Functionality**: Requeue failed or processed messages
+- **Dark/Light Theme**: Toggle between themes
+- **Responsive Design**: Works on desktop and mobile devices
+
+### Basic Setup
+
+Add the dashboard to your ASP.NET Core application:
+
+```csharp
+using MirageQueue;
+using MirageQueue.Postgres;
+using MirageQueue.Dashboard; // Add this for dashboard
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure MirageQueue
+builder.Services.AddMirageQueue();
+builder.Services.AddMirageQueuePostgres(builder.Configuration.GetConnectionString("DefaultConnection"));
+builder.Services.AddConsumersFromAssembly(typeof(Program).Assembly);
+
+// Add dashboard (optional but recommended)
+builder.Services.AddMirageQueueDashboard();
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map dashboard endpoints
+app.MapMirageQueueDashboard();
+
+// Initialize MirageQueue
+app.UseMirageQueue();
+
+app.Run();
+```
+
+### Accessing the Dashboard
+
+Once configured, the dashboard is available at:
+```
+https://your-app-domain/mirage-dashboard
+```
+
+You can customize the route prefix:
+```csharp
+// Custom route prefix
+app.MapMirageQueueDashboard("my-custom-path");
+// Accessible at: https://your-app-domain/my-custom-path
+```
+
+### Security Configuration
+
+**Important**: The dashboard doesn't include built-in authentication. For production environments:
+
+```csharp
+// Secure with authentication
+app.MapMirageQueueDashboard()
+   .RequireAuthorization("AdminPolicy");
+
+// Or restrict to specific roles
+app.MapMirageQueueDashboard()
+   .RequireAuthorization("Admin");
+
+// Or use custom authentication
+app.MapMirageQueueDashboard()
+   .RequireHost("localhost") // Only local access
+   .RequireAuthorization();
+```
+
+### Dashboard Sections
+
+- **Overview**: Real-time statistics and system status
+- **Inbound Messages**: Messages received for processing
+- **Outbound Messages**: Messages being sent to external endpoints (with contract/endpoint filtering)
+- **Scheduled Messages**: Messages scheduled for future processing
+- **Message Details**: Complete message information with requeue options
+
+For detailed dashboard documentation, see the [Dashboard README](src/MirageQueue.Dashboard/README.md).

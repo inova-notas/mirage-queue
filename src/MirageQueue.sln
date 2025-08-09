@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "0.SolutionItems", "0.Soluti
 	ProjectSection(SolutionItems) = preProject
 		..\.github\workflows\publish_base_package.yml = ..\.github\workflows\publish_base_package.yml
 		..\.github\workflows\pr_build_test.yml = ..\.github\workflows\pr_build_test.yml
+		..\.github\workflows\publish_dashboard_package.yml = ..\.github\workflows\publish_dashboard_package.yml
 		..\.github\workflows\publish_nuget_pkg.yml = ..\.github\workflows\publish_nuget_pkg.yml
 		..\.github\workflows\publish_postgres_package.yml = ..\.github\workflows\publish_postgres_package.yml
 		..\.github\dependabot.yml = ..\.github\dependabot.yml

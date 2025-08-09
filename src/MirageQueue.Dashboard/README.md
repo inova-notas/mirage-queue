@@ -4,12 +4,15 @@ A web-based dashboard for monitoring and managing MirageQueue message queues, si
 
 ## Features
 
-- **Real-time Statistics**: View live stats for inbound, outbound, and scheduled messages
-- **Message Management**: Browse, filter, and search through all message types
-- **Message Details**: View detailed information about individual messages
-- **Requeue Functionality**: Requeue failed or processed messages
-- **Responsive Design**: Modern UI built with Bootstrap 5 and DaisyUI
-- **Real-time Updates**: Auto-refreshing dashboard using HTMX
+- **Real-time Statistics**: View live stats for inbound, outbound, and scheduled messages with auto-refresh
+- **Message Management**: Browse, filter, and search through all message types with pagination
+- **Advanced Filtering**: Filter outbound messages by contract and endpoint with cached dropdown options
+- **Interactive Tooltips**: Hover over message content to see full payload with JSON prettification
+- **Message Details**: View complete message information with proper formatting
+- **Requeue Functionality**: Requeue failed or processed messages with one click
+- **Dark/Light Theme Toggle**: Switch between themes with persistent storage
+- **Responsive Design**: Modern UI built with Bootstrap 5 that works on all devices
+- **Real-time Updates**: Auto-refreshing dashboard using HTMX without full page reloads
 
 ## Installation
 
@@ -24,15 +27,18 @@ dotnet add package InovaNotas.MirageQueue.Dashboard
 Add the dashboard to your ASP.NET Core application:
 
 ```csharp
+using MirageQueue;
+using MirageQueue.Postgres;
 using MirageQueue.Dashboard;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add your MirageQueue services
+// Configure MirageQueue
 builder.Services.AddMirageQueue();
-builder.Services.AddMirageQueuePostgres(connectionString);
+builder.Services.AddMirageQueuePostgres(builder.Configuration.GetConnectionString("DefaultConnection"));
+builder.Services.AddConsumersFromAssembly(typeof(Program).Assembly);
 
-// Add the dashboard (optional)
+// Add dashboard
 builder.Services.AddMirageQueueDashboard();
 
 var app = builder.Build();
@@ -41,6 +47,9 @@ app.UseRouting();
 
 // Map dashboard endpoints
 app.MapMirageQueueDashboard();
+
+// Initialize MirageQueue (must be after routing)
+app.UseMirageQueue();
 
 app.Run();
 ```
@@ -51,8 +60,8 @@ By default, the dashboard is available at `/mirage-dashboard`. You can customize
 
 ```csharp
 // Custom route prefix
-builder.Services.AddMirageQueueDashboard();
 app.MapMirageQueueDashboard("my-queue-dashboard");
+// Accessible at: https://your-app/my-queue-dashboard
 ```
 
 ## Dashboard Sections
@@ -63,13 +72,20 @@ app.MapMirageQueueDashboard("my-queue-dashboard");
 - System status information
 
 ### Messages
-- Paginated lists of inbound, outbound, and scheduled messages
-- Status filtering
-- Message search and navigation
+- **Inbound Messages**: Messages received for processing
+- **Outbound Messages**: Messages being sent to external endpoints
+  - Contract filtering (cached dropdown)
+  - Endpoint filtering (cached dropdown) 
+- **Scheduled Messages**: Messages scheduled for future processing
+- Status filtering for all message types
+- Pagination with configurable page sizes
+- Hover tooltips showing full message payload
 
 ### Message Details
-- Complete message information including content
+- Complete message information with JSON formatting
 - Message history and timestamps
+- Consumer endpoint information (for outbound messages)
+- Execute time information (for scheduled messages)
 - Requeue functionality for eligible messages
 
 ## Security Considerations
@@ -97,8 +113,97 @@ The dashboard uses modern CSS frameworks and can be customized by:
 ## Dependencies
 
 - ASP.NET Core 9.0+
-- MirageQueue core library
-- Bootstrap 5 (CDN)
-- DaisyUI (CDN)
-- FontAwesome (CDN)
-- HTMX (CDN)
+- InovaNotas.MirageQueue 2.2.0+
+- Bootstrap 5.3+ (loaded from CDN)
+- FontAwesome 6.4+ (loaded from CDN)
+- Bootstrap Icons (loaded from CDN)
+- HTMX 1.9+ (loaded from CDN)
+
+All external dependencies are loaded from CDN, so no additional packages are required.
+
+## Troubleshooting
+
+### Common Issues
+
+#### Dashboard not accessible
+- **Issue**: 404 error when accessing `/mirage-dashboard`
+- **Solution**: Ensure you called `app.MapMirageQueueDashboard()` after `app.UseRouting()`
+
+```csharp
+app.UseRouting();
+app.MapMirageQueueDashboard(); // Must be after UseRouting()
+```
+
+#### No data showing in dashboard
+- **Issue**: Dashboard loads but shows no messages or statistics
+- **Solutions**:
+  1. Verify your database connection string is correct
+  2. Ensure `app.UseMirageQueue()` is called to create database tables
+  3. Check that messages are being published to the queue
+
+#### CSS/JavaScript not loading
+- **Issue**: Dashboard appears unstyled or interactive features don't work
+- **Solution**: Ensure your application can access external CDNs. For offline environments, consider hosting the assets locally.
+
+#### Tooltips not working
+- **Issue**: Hover tooltips for message content not appearing
+- **Solutions**:
+  1. Clear browser cache and hard refresh (Ctrl+F5)
+  2. Check browser console for JavaScript errors
+  3. Ensure HTMX is loading properly
+
+#### Filtering not working
+- **Issue**: Contract/Endpoint dropdowns empty or filtering doesn't work
+- **Solutions**:
+  1. Ensure you have outbound messages in your database
+  2. Check that message contracts and endpoints are not null/empty
+  3. Wait for cache refresh (5-minute cache timeout)
+
+#### Performance issues
+- **Issue**: Dashboard loads slowly or times out
+- **Solutions**:
+  1. Reduce page size in messages view
+  2. Consider database indexing on frequently queried columns
+  3. Monitor database connection pool usage
+
+### Development Tips
+
+1. **Use Debug Configuration**: During development, the dashboard automatically uses local project references for easier debugging
+
+2. **Check Application Logs**: Enable detailed logging to troubleshoot issues:
+```csharp
+builder.Services.AddLogging(builder => 
+    builder.SetMinimumLevel(LogLevel.Debug));
+```
+
+3. **Verify Dependencies**: Ensure all required services are registered:
+```csharp
+// Required for MirageQueue
+builder.Services.AddMirageQueue();
+builder.Services.AddMirageQueuePostgres(connectionString);
+
+// Required for Dashboard
+builder.Services.AddMirageQueueDashboard();
+```
+
+### Best Practices
+
+1. **Secure in Production**: Always add authentication/authorization:
+```csharp
+app.MapMirageQueueDashboard()
+   .RequireAuthorization("AdminPolicy");
+```
+
+2. **Custom Route**: Use descriptive route prefixes:
+```csharp
+app.MapMirageQueueDashboard("admin/queues");
+```
+
+3. **Monitoring**: Consider logging dashboard access for security auditing
+
+4. **Performance**: For high-volume systems, consider:
+   - Separate read-only database connections for dashboard
+   - Implementing custom caching strategies
+   - Limiting dashboard access during peak hours
+
+For more help, check the [main project README](../../README.md) or create an issue in the GitHub repository.
