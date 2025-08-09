@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="2.3.0"></a>
+## [2.3.0](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.3.0) (2025-08-09)
+
+### Features
+
+* add dashboard ([f48e61f](https://www.github.com/inova-notas/mirage-queue/commit/f48e61fd13a9ba68c2993ef2c0ede9daf4aa4648))
+
 <a name="2.2.0"></a>
 ## [2.2.0](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.2.0) (2025-06-29)
 
