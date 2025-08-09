@@ -1,0 +1,130 @@
+@model MessagesListViewModel
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        @if (Model.Messages.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Message Contract</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Updated</th>
+                            @if (Model.MessageType == "Outbound")
+                            {
+                                <th>Endpoint</th>
+                            }
+                            @if (Model.MessageType == "Scheduled")
+                            {
+                                <th>Execute At</th>
+                            }
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var message in Model.Messages)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-medium">@message.MessageContract</div>
+                                    <div class="small text-muted text-truncate message-content-hover" 
+                                         style="max-width: 200px;"
+                                         data-bs-toggle="tooltip"
+                                         data-bs-title="@message.Content"
+                                         data-content-type="@(message.Content.TrimStart().StartsWith("{") || message.Content.TrimStart().StartsWith("[") ? "json" : "text")">
+                                        @message.Content[..Math.Min(message.Content.Length, 50)]@(message.Content.Length > 50 ? "..." : "")
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="status-badge badge 
+                                        @(message.Status.Contains("New") ? "bg-info" : 
+                                          message.Status.Contains("Processing") || message.Status.Contains("Queued") ? "bg-warning" :
+                                          message.Status.Contains("Processed") ? "bg-success" :
+                                          message.Status.Contains("Failed") ? "bg-danger" : "bg-secondary")">
+                                        @message.Status
+                                    </span>
+                                </td>
+                                <td>
+                                    <small>@message.CreateAt.ToString("MM/dd HH:mm:ss")</small>
+                                </td>
+                                <td>
+                                    <small>@(message.UpdateAt?.ToString("MM/dd HH:mm:ss") ?? "-")</small>
+                                </td>
+                                @if (Model.MessageType == "Outbound")
+                                {
+                                    <td>
+                                        <small>@(message.ConsumerEndpoint ?? "-")</small>
+                                    </td>
+                                }
+                                @if (Model.MessageType == "Scheduled")
+                                {
+                                    <td>
+                                        <small>@(message.ExecuteAt?.ToString("MM/dd HH:mm:ss") ?? "-")</small>
+                                    </td>
+                                }
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <a href="/mirage-dashboard/message/@message.Id?type=@Model.MessageType.ToLower()" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.TotalPages > 1)
+            {
+                <div class="d-flex justify-content-center mt-4">
+                    <nav aria-label="Messages pagination">
+                        <ul class="pagination pagination-sm">
+                            @if (Model.CurrentPage > 1)
+                            {
+                                <li class="page-item">
+                                    <a href="/mirage-dashboard/messages?type=@Model.MessageType.ToLower()&page=@(Model.CurrentPage - 1)&pageSize=@Model.PageSize&statusFilter=@Model.StatusFilter&contractFilter=@Model.ContractFilter&endpointFilter=@Model.EndpointFilter" 
+                                       class="page-link">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            }
+
+                            @for (int i = Math.Max(1, Model.CurrentPage - 2); i <= Math.Min(Model.TotalPages, Model.CurrentPage + 2); i++)
+                            {
+                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                    <a href="/mirage-dashboard/messages?type=@Model.MessageType.ToLower()&page=@i&pageSize=@Model.PageSize&statusFilter=@Model.StatusFilter&contractFilter=@Model.ContractFilter&endpointFilter=@Model.EndpointFilter"
+                                       class="page-link">
+                                        @i
+                                    </a>
+                                </li>
+                            }
+
+                            @if (Model.CurrentPage < Model.TotalPages)
+                            {
+                                <li class="page-item">
+                                    <a href="/mirage-dashboard/messages?type=@Model.MessageType.ToLower()&page=@(Model.CurrentPage + 1)&pageSize=@Model.PageSize&statusFilter=@Model.StatusFilter&contractFilter=@Model.ContractFilter&endpointFilter=@Model.EndpointFilter" 
+                                       class="page-link">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-inbox display-1 text-muted mb-3"></i>
+                <h3 class="h5 fw-semibold mb-2">No messages found</h3>
+                <p class="text-muted">There are no @Model.MessageType.ToLower() messages matching your criteria.</p>
+            </div>
+        }
+    </div>
+</div>

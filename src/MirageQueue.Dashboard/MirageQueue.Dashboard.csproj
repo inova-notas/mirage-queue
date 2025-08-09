@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+        <Version>2.2.0</Version>
+        <Authors>Inova Notas, Hederson Boechat</Authors>
+        <Description>Dashboard UI for MirageQueue - provides a web interface to monitor and manage your message queues, similar to Hangfire dashboard.</Description>
+        <RepositoryUrl>https://github.com/inova-notas/mirage-queue</RepositoryUrl>
+        <PackageId>InovaNotas.MirageQueue.Dashboard</PackageId>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageTags>database, queue, library, postgres, dashboard, ui, web, monitoring</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="InovaNotas.MirageQueue" Version="2.2.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="wwwroot/**/*" />
+    </ItemGroup>
+
+</Project>

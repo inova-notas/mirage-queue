@@ -1,0 +1,173 @@
+@model MessageDetailViewModel
+
+@{
+    ViewData["Title"] = $"Message Detail - {Model.MessageType}";
+}
+
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-2">
+            @if (Model.MessageType == "Inbound")
+            {
+                <i class="fas fa-inbox me-3 text-primary"></i>
+            }
+            else if (Model.MessageType == "Outbound")
+            {
+                <i class="fas fa-paper-plane me-3 text-success"></i>
+            }
+            else
+            {
+                <i class="fas fa-clock me-3 text-info"></i>
+            }
+            Message Detail
+        </h1>
+        <p class="text-muted">@Model.MessageType Message • @Model.Id</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-3 mt-lg-0">
+        <a href="/mirage-dashboard/messages?type=@Model.MessageType.ToLower()" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Messages
+        </a>
+        @if (Model.CanRequeue)
+        {
+            <form method="post" action="/mirage-dashboard/requeue/@Model.Id?type=@Model.MessageType.ToLower()" class="d-inline">
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Are you sure you want to requeue this message?')">
+                    <i class="fas fa-redo me-2"></i>Requeue
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+<!-- Alert Messages -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success d-flex align-items-center mb-4">
+        <i class="fas fa-check-circle me-2"></i>
+        <span>@TempData["SuccessMessage"]</span>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger d-flex align-items-center mb-4">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <span>@TempData["ErrorMessage"]</span>
+    </div>
+}
+
+<div class="row g-4">
+    <!-- Basic Information -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-4">
+                    <i class="fas fa-info-circle me-2"></i>Basic Information
+                </h5>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Message ID</label>
+                    <div class="bg-body-secondary p-3 rounded font-monospace small">
+                        @Model.Id
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Message Contract</label>
+                    <div class="bg-body-secondary p-3 rounded">
+                        @Model.MessageContract
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <div>
+                        <span class="status-badge badge fs-6 
+                            @(Model.Status.Contains("New") ? "bg-info" : 
+                              Model.Status.Contains("Processing") || Model.Status.Contains("Queued") ? "bg-warning" :
+                              Model.Status.Contains("Processed") ? "bg-success" :
+                              Model.Status.Contains("Failed") ? "bg-danger" : "bg-secondary")">
+                            @Model.Status
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Message Type</label>
+                    <div class="bg-body-secondary p-3 rounded">
+                        @Model.MessageType
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timestamps & Additional Info -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-4">
+                    <i class="fas fa-clock me-2"></i>Timestamps & Details
+                </h5>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Created At</label>
+                    <div class="bg-body-secondary p-3 rounded">
+                        @Model.CreateAt.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Updated At</label>
+                    <div class="bg-body-secondary p-3 rounded">
+                        @(Model.UpdateAt?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Not updated")
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.ConsumerEndpoint))
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Consumer Endpoint</label>
+                        <div class="bg-body-secondary p-3 rounded">
+                            @Model.ConsumerEndpoint
+                        </div>
+                    </div>
+                }
+
+                @if (Model.ExecuteAt.HasValue)
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Execute At</label>
+                        <div class="bg-body-secondary p-3 rounded">
+                            @Model.ExecuteAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                        </div>
+                    </div>
+                }
+
+                @if (Model.InboundMessageId.HasValue)
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Inbound Message ID</label>
+                        <div class="bg-body-secondary p-3 rounded font-monospace small">
+                            <a href="/mirage-dashboard/message/@Model.InboundMessageId?type=inbound" class="text-primary text-decoration-none">
+                                @Model.InboundMessageId
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Message Content -->
+<div class="card shadow-sm mt-4">
+    <div class="card-body">
+        <h5 class="card-title mb-4">
+            <i class="fas fa-file-alt me-2"></i>Message Content
+        </h5>
+        
+        <div class="bg-body-secondary p-4 rounded">
+            <pre class="small overflow-auto" style="white-space: pre-wrap;">@Model.Content</pre>
+        </div>
+    </div>
+</div>

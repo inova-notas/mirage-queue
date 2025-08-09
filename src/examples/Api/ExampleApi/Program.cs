@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using MirageQueue;
 using MirageQueue.Postgres;
 using MirageQueue.Publishers.Abstractions;
+using MirageQueue.Dashboard;
 
 var builder = WebApplication.CreateBuilder(args);
-
 
 builder.Services.AddMirageQueue();
 
@@ -13,9 +13,14 @@ builder.Services.AddMirageQueuePostgres(builder.Configuration.GetConnectionStrin
 
 builder.Services.AddConsumersFromAssembly(typeof(TestMessageConsumer).Assembly);
 
+// Add the dashboard
+builder.Services.AddMirageQueueDashboard();
+
 var app = builder.Build();
 
 app.UseHttpsRedirection();
+
+app.UseRouting();
 
 app.MapPost("/publish", async ([FromServices] IPublisher publisher) =>
 {
@@ -26,7 +31,6 @@ app.MapPost("/publish", async ([FromServices] IPublisher publisher) =>
 
     return Results.Ok();
 });
-
 
 app.MapPost("/schedule", async ([FromServices] IPublisher publisher) =>
 {
@@ -39,6 +43,9 @@ app.MapPost("/schedule", async ([FromServices] IPublisher publisher) =>
     Console.WriteLine($"Scheduled at {DateTime.Now:hh:mm:ss}");
     return Results.Ok();
 });
+
+// Map the dashboard endpoints
+app.MapMirageQueueDashboard();
 
 app.UseMirageQueue();
 

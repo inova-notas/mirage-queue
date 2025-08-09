@@ -1,4 +1,4 @@
-@ExampleApi_HostAddress = http://localhost:5172
+@ExampleApi_HostAddress = https://localhost:7209
 
 POST {{ExampleApi_HostAddress}}/publish
 Accept: application/json
