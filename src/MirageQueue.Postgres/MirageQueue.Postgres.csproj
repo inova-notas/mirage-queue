@@ -15,7 +15,7 @@
 
     <ItemGroup>
       <PackageReference Include="InovaNotas.MirageQueue" Version="2.3.0" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.6">
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.11">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
