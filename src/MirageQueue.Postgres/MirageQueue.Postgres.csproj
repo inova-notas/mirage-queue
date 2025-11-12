@@ -3,7 +3,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <Version>2.3.0</Version>
+        <Version>2.3.1</Version>
         <Authors>Inova Notas, Hederson Boechat</Authors>
         <Description>This library was intended to help us have the benefits of a message broker without having another infrastructure dependency, meaning it was designed to use a database as a message broker.</Description>
         <RepositoryUrl>https://github.com/inova-notas/mirage-queue</RepositoryUrl>
@@ -13,8 +13,17 @@
         <PackageTags>database, queue, library, postgres, pub/sub</PackageTags>
     </PropertyGroup>
 
+    <!-- Conditional References: Use local projects for Debug, NuGet packages for Release -->
+    <ItemGroup Condition="'$(UseLocalProjects)' == 'true'">
+        <ProjectReference Include="../MirageQueue/MirageQueue.csproj" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
+        <PackageReference Include="InovaNotas.MirageQueue" Version="2.3.1" />
+    </ItemGroup>
+
     <ItemGroup>
-      <PackageReference Include="InovaNotas.MirageQueue" Version="2.3.0" />
+        
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.11">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
