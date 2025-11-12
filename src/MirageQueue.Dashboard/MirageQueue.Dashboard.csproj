@@ -4,7 +4,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
-        <Version>2.3.0</Version>
+        <Version>2.3.1</Version>
         <Authors>Inova Notas, Hederson Boechat</Authors>
         <Description>Dashboard UI for MirageQueue - provides a web interface to monitor and manage your message queues, similar to Hangfire dashboard.</Description>
         <RepositoryUrl>https://github.com/inova-notas/mirage-queue</RepositoryUrl>
