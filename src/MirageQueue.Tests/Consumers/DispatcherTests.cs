@@ -43,8 +43,8 @@ public class DispatcherTests
             Content = messageContent,
             Id = Guid.NewGuid(),
             Status = OutboundMessageStatus.New,
-            ConsumerEndpoint = typeof(DummyConsumer).FullName,
-            MessageContract = typeof(DummyMessage).FullName,
+            ConsumerEndpoint = typeof(DummyConsumer).FullName!,
+            MessageContract = typeof(DummyMessage).FullName!,
             CreateAt = DateTime.Now,
             InboundMessageId = Guid.NewGuid()
         });

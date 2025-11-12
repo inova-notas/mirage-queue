@@ -9,7 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMirageQueue();
 
-builder.Services.AddMirageQueuePostgres(builder.Configuration.GetConnectionString("DefaultConnection"));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+
+builder.Services.AddMirageQueuePostgres(connectionString);
 
 builder.Services.AddConsumersFromAssembly(typeof(TestMessageConsumer).Assembly);
 
