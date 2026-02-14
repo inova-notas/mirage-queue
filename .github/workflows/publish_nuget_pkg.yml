@@ -8,7 +8,7 @@ on:
         type: string
         
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.x'
   NUGET_OUTPUT: './pkg-nuget/'
   CONFIG: 'Release'
   NUGET_SOURCE: 'https://api.nuget.org/v3/index.json'
