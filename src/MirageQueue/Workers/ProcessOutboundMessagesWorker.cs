@@ -57,7 +57,12 @@ public class ProcessOutboundMessagesWorker : BackgroundService
 
                 if (result.Exception is not null)
                 {
-                    await outboundRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Failed);
+                    await outboundRepository.UpdateMessageStatus(
+                        message.Id,
+                        OutboundMessageStatus.Failed,
+                        result.Exception?.InnerException?.Message ?? result.Exception?.Message,
+                        result.Exception?.InnerException?.ToString() ?? result.Exception?.ToString(),
+                        result.Exception?.InnerException?.GetType().FullName ?? result.Exception?.GetType().FullName);
                 }
                 else
                 {

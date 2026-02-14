@@ -40,4 +40,19 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
 
         await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"OutboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam} WHERE \"Id\" = {idParam}");
     }
+
+    public async Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = default)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var idParam = new NpgsqlParameter("idParam", id);
+        var statusUpdateParam = new NpgsqlParameter("statusUpdateParam", (int)status);
+        var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
+        var errorMessageParam = new NpgsqlParameter("errorMessageParam", (object?)errorMessage ?? DBNull.Value);
+        var stackTraceParam = new NpgsqlParameter("stackTraceParam", (object?)stackTrace ?? DBNull.Value);
+        var exceptionTypeParam = new NpgsqlParameter("exceptionTypeParam", (object?)exceptionType ?? DBNull.Value);
+
+        await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"OutboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam}, \"ErrorMessage\" = {errorMessageParam}, \"StackTrace\" = {stackTraceParam}, \"ExceptionType\" = {exceptionTypeParam} WHERE \"Id\" = {idParam}");
+    }
 }

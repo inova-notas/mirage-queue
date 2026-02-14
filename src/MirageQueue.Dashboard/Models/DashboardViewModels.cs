@@ -60,4 +60,7 @@ public class MessageDetailViewModel
     public DateTime? ExecuteAt { get; set; }
     public Guid? InboundMessageId { get; set; }
     public bool CanRequeue { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? StackTrace { get; set; }
+    public string? ExceptionType { get; set; }
 }

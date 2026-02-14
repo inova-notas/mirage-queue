@@ -35,6 +35,16 @@ app.MapPost("/publish", async ([FromServices] IPublisher publisher) =>
     return Results.Ok();
 });
 
+app.MapPost("/publish-failing", async ([FromServices] IPublisher publisher) =>
+{
+    await publisher.Publish(new FailingMessage
+    {
+        Id = Guid.NewGuid()
+    });
+
+    return Results.Ok("Failing message published. Check the dashboard for error details.");
+});
+
 app.MapPost("/schedule", async ([FromServices] IPublisher publisher) =>
 {
     await publisher.Schedule(new TestMessage

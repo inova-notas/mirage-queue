@@ -22,8 +22,21 @@ public class DispatcherTests
         services.AddSingleton(logger.Object);
         services.AddSingleton(_dummyService.Object);
         services.AddSingleton<Dispatcher>();
-        DispatcherContext.MapFromAssembly(typeof(DummyConsumer).Assembly, type => services.AddScoped(type));
 
+        // DispatcherContext is global static — may already be registered from other test classes
+        if (!DispatcherContext.Consumers.Any(c => c.ConsumerEndpoint == typeof(DummyConsumer).FullName))
+        {
+            try
+            {
+                DispatcherContext.MapFromAssembly(typeof(DummyConsumer).Assembly, type => services.AddScoped(type));
+            }
+            catch (ArgumentException)
+            {
+                // Already registered by another test class
+            }
+        }
+
+        services.AddScoped<DummyConsumer>();
         _serviceProvider = services.BuildServiceProvider();
     }
 

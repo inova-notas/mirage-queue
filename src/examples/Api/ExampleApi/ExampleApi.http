@@ -10,3 +10,5 @@ POST {{ExampleApi_HostAddress}}/schedule
 Accept: application/json
 
 ###
+POST {{ExampleApi_HostAddress}}/publish-failing
+Accept: application/json

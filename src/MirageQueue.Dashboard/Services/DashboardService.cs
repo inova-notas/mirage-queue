@@ -231,7 +231,10 @@ public class DashboardService : IDashboardService
             MessageType = "Outbound",
             ConsumerEndpoint = message.ConsumerEndpoint,
             InboundMessageId = message.InboundMessageId,
-            CanRequeue = message.Status == OutboundMessageStatus.Failed || message.Status == OutboundMessageStatus.Processed
+            CanRequeue = message.Status == OutboundMessageStatus.Failed || message.Status == OutboundMessageStatus.Processed,
+            ErrorMessage = message.ErrorMessage,
+            StackTrace = message.StackTrace,
+            ExceptionType = message.ExceptionType
         };
     }
 

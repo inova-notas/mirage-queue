@@ -47,7 +47,12 @@ public abstract class OutboundMessageHandlerWorker(
                     catch (Exception e)
                     {
                         logger.LogError(e, "Error while adding outbound message to channel {MessageId}", message.Id);
-                        await outboundRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Failed);
+                        await outboundRepository.UpdateMessageStatus(
+                            message.Id,
+                            OutboundMessageStatus.Failed,
+                            e.Message,
+                            e.ToString(),
+                            e.GetType().FullName);
                         await dbContext.SaveChangesAsync(stoppingToken);
                     }
                 }

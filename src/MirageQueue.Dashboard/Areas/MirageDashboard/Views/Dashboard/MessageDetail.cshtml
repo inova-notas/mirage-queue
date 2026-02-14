@@ -159,13 +159,52 @@
     </div>
 </div>
 
+<!-- Error Details (only shown for failed messages) -->
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="card shadow-sm mt-4 border-danger">
+        <div class="card-body">
+            <h5 class="card-title mb-4 text-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>Error Details
+            </h5>
+
+            @if (!string.IsNullOrEmpty(Model.ExceptionType))
+            {
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Exception Type</label>
+                    <div class="bg-body-secondary p-3 rounded font-monospace small">
+                        @Model.ExceptionType
+                    </div>
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Error Message</label>
+                <div class="bg-body-secondary p-3 rounded">
+                    @Model.ErrorMessage
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.StackTrace))
+            {
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Stack Trace</label>
+                    <div class="bg-body-secondary p-4 rounded">
+                        <pre class="small overflow-auto mb-0" style="white-space: pre-wrap;">@Model.StackTrace</pre>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
 <!-- Message Content -->
 <div class="card shadow-sm mt-4">
     <div class="card-body">
         <h5 class="card-title mb-4">
             <i class="fas fa-file-alt me-2"></i>Message Content
         </h5>
-        
+
         <div class="bg-body-secondary p-4 rounded">
             <pre class="small overflow-auto" style="white-space: pre-wrap;">@Model.Content</pre>
         </div>
