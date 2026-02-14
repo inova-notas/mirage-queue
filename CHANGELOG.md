@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="2.4.0"></a>
+## [2.4.0](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.4.0) (2026-02-14)
+
+### Features
+
+* store the errors from consumer in the outbound message table ([89bb289](https://www.github.com/inova-notas/mirage-queue/commit/89bb289118aa0d38b950611a061b026ee94e90d8))
+
 <a name="2.3.1"></a>
 ## [2.3.1](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.3.1) (2025-11-12)
 
