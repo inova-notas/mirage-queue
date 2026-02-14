@@ -4,7 +4,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
-        <Version>2.3.1</Version>
+        <Version>2.4.0</Version>
         <Authors>Inova Notas, Hederson Boechat</Authors>
         <Description>Dashboard UI for MirageQueue - provides a web interface to monitor and manage your message queues, similar to Hangfire dashboard.</Description>
         <RepositoryUrl>https://github.com/inova-notas/mirage-queue</RepositoryUrl>
@@ -20,7 +20,7 @@
     </ItemGroup>
     
     <ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
-        <PackageReference Include="InovaNotas.MirageQueue" Version="2.3.0" />
+        <PackageReference Include="InovaNotas.MirageQueue" Version="2.4.0" />
     </ItemGroup>
 
     <ItemGroup>
