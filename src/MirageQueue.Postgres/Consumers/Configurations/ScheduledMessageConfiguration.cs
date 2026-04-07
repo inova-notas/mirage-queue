@@ -14,5 +14,7 @@ public class ScheduledMessageConfiguration : IEntityTypeConfiguration<ScheduledI
 
         builder.Property(x => x.MessageContract)
             .HasMaxLength(200);
+
+        builder.HasIndex(x => new { x.Status, x.ExecuteAt });
     }
 }

@@ -23,27 +23,14 @@ public class MessageHandler(
         return await inboundMessageRepository.GetQueuedMessages(dbTransaction, configuration.WorkersQuantity);
     }
 
-    private async Task<List<OutboundMessage>> GetOutboundMessage(IDbContextTransaction dbTransaction)
-    {
-        return await outboundMessageRepository.GetQueuedMessages(dbTransaction, configuration.WorkersQuantity);
-    }
-    
     private async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction dbTransaction)
     {
         return await scheduledMessageRepository.GetScheduledMessages(dbTransaction, configuration.WorkersQuantity);
     }
 
-    public async Task<List<OutboundMessage>> HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction)
+    public async Task<List<OutboundMessage>> HandleQueuedOutboundMessages(IReadOnlyList<Guid> processingTokens, IDbContextTransaction dbTransaction)
     {
-        var messages = await GetOutboundMessage(dbTransaction);
-        await outboundMessageRepository.SetTransaction(dbTransaction);
-
-        foreach (var message in messages)
-        {
-            await outboundMessageRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Processing, dbTransaction);
-        }
-
-        return messages;
+        return await outboundMessageRepository.ClaimQueuedMessages(processingTokens, dbTransaction);
     }
     
     public async Task AddOutboundMessageToChannel(OutboundMessage message)
@@ -77,32 +64,19 @@ public class MessageHandler(
     {
         var inboundMessages = await GetInboundMessages(dbTransaction);
 
-        try
+        foreach (var inboundMessage in inboundMessages)
         {
-            foreach (var inboundMessage in inboundMessages)
-            {
-                await CovertInboundToOutboundMessage(inboundMessage, dbTransaction);
-            }
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error while processing inbound messages");
+            await CovertInboundToOutboundMessage(inboundMessage, dbTransaction);
         }
     }
     
     public async Task HandleScheduledMessages(IDbContextTransaction dbTransaction)
     {
         var scheduledMessages = await GetScheduledMessages(dbTransaction);
-        try
+
+        foreach (var message in scheduledMessages)
         {
-            foreach (var message in scheduledMessages)
-            {
-                await ConvertScheduledToInboundMessage(message, dbTransaction);
-            }
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error while processing scheduled messages");
+            await ConvertScheduledToInboundMessage(message, dbTransaction);
         }
     }
     

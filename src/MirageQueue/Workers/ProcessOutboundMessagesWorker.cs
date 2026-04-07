@@ -38,7 +38,7 @@ public class ProcessOutboundMessagesWorker : BackgroundService
         }
 
         await Task.WhenAll(tasks.ToArray());
-        
+
         _logger.LogInformation("All Outbound message workers stopped");
     }
 
@@ -49,25 +49,82 @@ public class ProcessOutboundMessagesWorker : BackgroundService
             using var scope = _serviceProvider.CreateScope();
             var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
             var outboundRepository = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
-            
+
             while (_channel.Reader.TryRead(out var message))
             {
                 _logger.LogInformation("Processing outbound message {MessageId} in worker {WorkerId}", message.Id, id);
-                var result = await messageHandler.ProcessOutboundMessage(message);
 
-                if (result.Exception is not null)
+                if (message.ProcessingToken is null)
                 {
-                    await outboundRepository.UpdateMessageStatus(
-                        message.Id,
-                        OutboundMessageStatus.Failed,
-                        result.Exception?.InnerException?.Message ?? result.Exception?.Message,
-                        result.Exception?.InnerException?.ToString() ?? result.Exception?.ToString(),
-                        result.Exception?.InnerException?.GetType().FullName ?? result.Exception?.GetType().FullName);
+                    _logger.LogWarning("Skipping outbound message {MessageId} because processing token is missing", message.Id);
+                    continue;
                 }
-                else
+
+                using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                var heartbeatTask = RunHeartbeat(message.Id, message.ProcessingToken.Value, heartbeatCts.Token);
+
+                try
                 {
-                    await outboundRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Processed);
+                    var result = await messageHandler.ProcessOutboundMessage(message);
+
+                    if (result.Exception is not null)
+                    {
+                        var updated = await outboundRepository.TryUpdateMessageStatus(
+                            message.Id,
+                            message.ProcessingToken.Value,
+                            OutboundMessageStatus.Failed,
+                            result.Exception?.InnerException?.Message ?? result.Exception?.Message,
+                            result.Exception?.InnerException?.ToString() ?? result.Exception?.ToString(),
+                            result.Exception?.InnerException?.GetType().FullName ?? result.Exception?.GetType().FullName);
+
+                        if (!updated)
+                            _logger.LogWarning("Message {MessageId} ownership lost before failure update", message.Id);
+                    }
+                    else
+                    {
+                        var updated = await outboundRepository.TryUpdateMessageStatus(
+                            message.Id,
+                            message.ProcessingToken.Value,
+                            OutboundMessageStatus.Processed);
+
+                        if (!updated)
+                            _logger.LogWarning("Message {MessageId} ownership lost before processed update", message.Id);
+                    }
                 }
+                finally
+                {
+                    await heartbeatCts.CancelAsync();
+                    await heartbeatTask;
+                }
+            }
+        }
+    }
+
+    async Task RunHeartbeat(Guid messageId, Guid processingToken, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(_configuration.HeartbeatIntervalInMilliseconds), cancellationToken);
+
+                using var scope = _serviceProvider.CreateScope();
+                var repository = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
+                var updated = await repository.TryUpdateHeartbeat(messageId, processingToken);
+
+                if (!updated)
+                {
+                    _logger.LogWarning("Stopping heartbeat for message {MessageId} because ownership was lost", messageId);
+                    return;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating heartbeat for message {MessageId}", messageId);
             }
         }
     }

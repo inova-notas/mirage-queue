@@ -18,6 +18,10 @@ public static class MirageQueueExtensions
         PoolingInboundTime = 500,
         PoolingOutboundTime = 500,
         WorkersQuantity = 20,
+        ProcessingRecoveryTimeInMinutes = 5,
+        PoolingRecoveryTime = 60000,
+        HeartbeatIntervalInMilliseconds = 60000,
+        OutboundChannelCapacity = 2000,
     };
     
     public static void AddMirageQueue(this IServiceCollection services)
@@ -27,11 +31,12 @@ public static class MirageQueueExtensions
         services.AddScoped<IPublisher, Publisher>();
         services.AddSingleton(Configuration);
         services.AddSingleton<Channel<OutboundMessage>>(_ => 
-            Channel.CreateUnbounded<OutboundMessage>(new UnboundedChannelOptions
+            Channel.CreateBounded<OutboundMessage>(new BoundedChannelOptions(Configuration.OutboundChannelCapacity)
             {
                 AllowSynchronousContinuations = false,
                 SingleWriter = true,
-                SingleReader = false
+                SingleReader = false,
+                FullMode = BoundedChannelFullMode.Wait
             }));
         services.AddHostedService<ProcessOutboundMessagesWorker>();
     }

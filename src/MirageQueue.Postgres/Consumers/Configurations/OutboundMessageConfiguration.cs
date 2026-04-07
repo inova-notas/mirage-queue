@@ -18,6 +18,15 @@ public class OutboundMessageConfiguration : IEntityTypeConfiguration<OutboundMes
         builder.Property(x => x.ConsumerEndpoint)
             .HasMaxLength(300);
 
+        builder.Property(x => x.ProcessingToken)
+            .IsRequired(false);
+
+        builder.Property(x => x.Version)
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+
         builder.Property(x => x.ErrorMessage)
             .IsRequired(false);
 
@@ -27,5 +36,11 @@ public class OutboundMessageConfiguration : IEntityTypeConfiguration<OutboundMes
         builder.Property(x => x.ExceptionType)
             .HasMaxLength(500)
             .IsRequired(false);
+
+        builder.HasIndex(x => x.Status);
+        builder.HasIndex(x => new { x.Status, x.UpdateAt });
+        builder.HasIndex(x => new { x.Status, x.CreateAt, x.Id });
+        builder.HasIndex(x => new { x.InboundMessageId, x.ConsumerEndpoint })
+            .IsUnique();
     }
 }

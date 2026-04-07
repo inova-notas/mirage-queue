@@ -5,6 +5,8 @@ public class OutboundMessage : BaseMessage
     public required OutboundMessageStatus Status { get; set; }
     public required string ConsumerEndpoint { get; set; }
     public required Guid InboundMessageId { get; set; }
+    public Guid? ProcessingToken { get; set; }
+    public uint Version { get; set; }
     public InboundMessage? InboundMessage { get; set; }
     public string? ErrorMessage { get; set; }
     public string? StackTrace { get; set; }

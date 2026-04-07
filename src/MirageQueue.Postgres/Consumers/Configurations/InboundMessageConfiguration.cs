@@ -15,5 +15,7 @@ public class InboundMessageConfiguration : IEntityTypeConfiguration<InboundMessa
 
         builder.Property(x => x.MessageContract)
             .HasMaxLength(200);
+
+        builder.HasIndex(x => x.Status);
     }
 }

@@ -34,8 +34,8 @@ public abstract class OutboundMessageHandlerWorker(
 
             try
             {
-                var messages = await messageHandler.HandleQueuedOutboundMessages(transaction);
-                await dbContext.SaveChangesAsync(stoppingToken);
+                var processingTokens = CreateProcessingTokens(configuration.WorkersQuantity);
+                var messages = await messageHandler.HandleQueuedOutboundMessages(processingTokens, transaction);
                 await transaction.CommitAsync(stoppingToken);
 
                 foreach (var message in messages)
@@ -47,26 +47,40 @@ public abstract class OutboundMessageHandlerWorker(
                     catch (Exception e)
                     {
                         logger.LogError(e, "Error while adding outbound message to channel {MessageId}", message.Id);
-                        await outboundRepository.UpdateMessageStatus(
+                        if (message.ProcessingToken is null)
+                            continue;
+
+                        await outboundRepository.TryUpdateMessageStatus(
                             message.Id,
+                            message.ProcessingToken.Value,
                             OutboundMessageStatus.Failed,
                             e.Message,
                             e.ToString(),
                             e.GetType().FullName);
-                        await dbContext.SaveChangesAsync(stoppingToken);
                     }
                 }
+
+                if (messages.Count == 0)
+                    await Task.Delay(TimeSpan.FromMilliseconds(configuration.PoolingOutboundTime), stoppingToken);
             }
             catch (Exception e)
             {
                 await transaction.RollbackAsync(stoppingToken);
                 logger.LogError(e, "Error processing outbound messages");
+                await Task.Delay(TimeSpan.FromMilliseconds(configuration.PoolingOutboundTime), stoppingToken);
             }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(configuration.PoolingOutboundTime), stoppingToken);
         }
         
         logger.LogInformation("Stopped Inbound message worker");
+    }
+
+    private static List<Guid> CreateProcessingTokens(int amount)
+    {
+        var tokens = new List<Guid>(amount);
+        for (var i = 0; i < amount; i++)
+            tokens.Add(Guid.NewGuid());
+
+        return tokens;
     }
 
     public abstract DbContext GetContext(AsyncServiceScope scope);

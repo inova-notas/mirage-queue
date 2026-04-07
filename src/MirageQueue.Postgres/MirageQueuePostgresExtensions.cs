@@ -24,6 +24,7 @@ public static class MirageQueuePostgresExtensions
         services.AddHostedService<PgOutMessageWorker>();
         services.AddHostedService<PgInMessageWorker>();
         services.AddHostedService<PgScheduledMessageWorker>();
+        services.AddHostedService<PgStuckProcessingRecoveryWorker>();
         services.AddScoped<IInboundMessageRepository, InboundMessageRepository>();
         services.AddScoped<IOutboundMessageRepository, OutboundMessageRepository>();
         services.AddScoped<IScheduledMessageRepository, ScheduledMessageRepository>();

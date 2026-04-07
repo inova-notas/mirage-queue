@@ -48,6 +48,8 @@ namespace MirageQueue.Postgres.Databases.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Status");
+
                     b.ToTable("InboundMessage", "mirage_queue");
                 });
 
@@ -84,6 +86,9 @@ namespace MirageQueue.Postgres.Databases.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<Guid?>("ProcessingToken")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("StackTrace")
                         .HasColumnType("text");
 
@@ -93,9 +98,24 @@ namespace MirageQueue.Postgres.Databases.Migrations
                     b.Property<DateTime?>("UpdateAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<uint>("Version")
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .IsConcurrencyToken();
+
                     b.HasKey("Id");
 
                     b.HasIndex("InboundMessageId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Status", "CreateAt", "Id");
+
+                    b.HasIndex("Status", "UpdateAt");
+
+                    b.HasIndex("InboundMessageId", "ConsumerEndpoint")
+                        .IsUnique();
 
                     b.ToTable("OutboundMessage", "mirage_queue");
                 });
@@ -128,6 +148,8 @@ namespace MirageQueue.Postgres.Databases.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Status", "ExecuteAt");
 
                     b.ToTable("ScheduledInboundMessage", "mirage_queue");
                 });
