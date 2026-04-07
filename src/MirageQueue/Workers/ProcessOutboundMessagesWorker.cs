@@ -46,12 +46,12 @@ public class ProcessOutboundMessagesWorker : BackgroundService
     {
         while (await _channel.Reader.WaitToReadAsync(stoppingToken))
         {
-            using var scope = _serviceProvider.CreateScope();
-            var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
-            var outboundRepository = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
-            
             while (_channel.Reader.TryRead(out var message))
             {
+                await using var scope = _serviceProvider.CreateAsyncScope();
+                var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
+                var outboundRepository = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
+
                 _logger.LogInformation("Processing outbound message {MessageId} in worker {WorkerId}", message.Id, id);
                 var result = await messageHandler.ProcessOutboundMessage(message);
 

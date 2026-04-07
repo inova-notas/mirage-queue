@@ -31,26 +31,37 @@ public class DashboardService : IDashboardService
         var outboundMessages = await _outboundRepository.GetAllNoTrackingAsync();
         var scheduledMessages = await _scheduledRepository.GetAllNoTrackingAsync();
 
-        var inboundList = await inboundMessages.ToListAsync();
-        var outboundList = await outboundMessages.ToListAsync();
-        var scheduledList = await scheduledMessages.ToListAsync();
+        var totalInboundMessages = await inboundMessages.CountAsync();
+        var newInboundMessages = await inboundMessages.CountAsync(m => m.Status == InboundMessageStatus.New);
+        var queuedInboundMessages = await inboundMessages.CountAsync(m => m.Status == InboundMessageStatus.Queued);
+
+        var totalOutboundMessages = await outboundMessages.CountAsync();
+        var creatingOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.Creating);
+        var newOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.New);
+        var processingOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.Processing);
+        var processedOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.Processed);
+        var failedOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.Failed);
+
+        var totalScheduledMessages = await scheduledMessages.CountAsync();
+        var waitingScheduledMessages = await scheduledMessages.CountAsync(m => m.Status == ScheduledInboundMessageStatus.WaitingScheduledTime);
+        var queuedScheduledMessages = await scheduledMessages.CountAsync(m => m.Status == ScheduledInboundMessageStatus.Queued);
 
         return new DashboardStatsViewModel
         {
-            TotalInboundMessages = inboundList.Count,
-            NewInboundMessages = inboundList.Count(m => m.Status == InboundMessageStatus.New),
-            QueuedInboundMessages = inboundList.Count(m => m.Status == InboundMessageStatus.Queued),
+            TotalInboundMessages = totalInboundMessages,
+            NewInboundMessages = newInboundMessages,
+            QueuedInboundMessages = queuedInboundMessages,
 
-            TotalOutboundMessages = outboundList.Count,
-            CreatingOutboundMessages = outboundList.Count(m => m.Status == OutboundMessageStatus.Creating),
-            NewOutboundMessages = outboundList.Count(m => m.Status == OutboundMessageStatus.New),
-            ProcessingOutboundMessages = outboundList.Count(m => m.Status == OutboundMessageStatus.Processing),
-            ProcessedOutboundMessages = outboundList.Count(m => m.Status == OutboundMessageStatus.Processed),
-            FailedOutboundMessages = outboundList.Count(m => m.Status == OutboundMessageStatus.Failed),
+            TotalOutboundMessages = totalOutboundMessages,
+            CreatingOutboundMessages = creatingOutboundMessages,
+            NewOutboundMessages = newOutboundMessages,
+            ProcessingOutboundMessages = processingOutboundMessages,
+            ProcessedOutboundMessages = processedOutboundMessages,
+            FailedOutboundMessages = failedOutboundMessages,
 
-            TotalScheduledMessages = scheduledList.Count,
-            WaitingScheduledMessages = scheduledList.Count(m => m.Status == ScheduledInboundMessageStatus.WaitingScheduledTime),
-            QueuedScheduledMessages = scheduledList.Count(m => m.Status == ScheduledInboundMessageStatus.Queued)
+            TotalScheduledMessages = totalScheduledMessages,
+            WaitingScheduledMessages = waitingScheduledMessages,
+            QueuedScheduledMessages = queuedScheduledMessages
         };
     }
 
