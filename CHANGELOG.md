@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="2.4.3"></a>
+## [2.4.3](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.4.3) (2026-04-08)
+
+### Bug Fixes
+
+* set channel's limit as option ([113a4a4](https://www.github.com/inova-notas/mirage-queue/commit/113a4a4c42d377e27eb613d268bc8c0bcf86b835))
+
 <a name="2.4.2"></a>
 ## [2.4.2](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.4.2) (2026-04-07)
 
