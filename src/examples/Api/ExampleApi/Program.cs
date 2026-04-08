@@ -45,6 +45,57 @@ app.MapPost("/publish-failing", async ([FromServices] IPublisher publisher) =>
     return Results.Ok("Failing message published. Check the dashboard for error details.");
 });
 
+app.MapPost("/pressure-test", async (
+    [FromServices] IServiceScopeFactory scopeFactory,
+    [FromServices] ILoggerFactory loggerFactory,
+    [FromQuery] int count = 1000,
+    [FromQuery] int parallelism = 50) =>
+{
+    if (count <= 0)
+        return Results.BadRequest("count must be greater than zero");
+
+    if (parallelism <= 0)
+        return Results.BadRequest("parallelism must be greater than zero");
+
+    var logger = loggerFactory.CreateLogger("PressureTest");
+    logger.LogInformation("Starting pressure test with {Count} messages and parallelism {Parallelism}", count, parallelism);
+
+    var semaphore = new SemaphoreSlim(parallelism, parallelism);
+    var tasks = new List<Task>(count);
+    var start = DateTime.UtcNow;
+
+    for (var i = 0; i < count; i++)
+    {
+        await semaphore.WaitAsync();
+        tasks.Add(Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+                await publisher.Publish(new PressureTestMessage { Id = Guid.NewGuid() });
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }));
+    }
+
+    await Task.WhenAll(tasks);
+
+    var elapsed = DateTime.UtcNow - start;
+    logger.LogInformation("Pressure test published {Count} messages in {ElapsedMs} ms", count, (long)elapsed.TotalMilliseconds);
+
+    return Results.Ok(new
+    {
+        PublishedMessages = count,
+        Parallelism = parallelism,
+        ElapsedMilliseconds = (long)elapsed.TotalMilliseconds,
+        Notes = "PressureTestMessageConsumer adds delay to simulate outbound channel pressure"
+    });
+});
+
 app.MapPost("/schedule", async ([FromServices] IPublisher publisher) =>
 {
     await publisher.Schedule(new TestMessage

@@ -67,10 +67,8 @@ public class MessageHandlerTests
 
         Assert.Equal(OutboundMessageStatus.Failed, result.Status);
         Assert.NotNull(result.Exception);
-        Assert.IsType<TargetInvocationException>(result.Exception);
-        Assert.NotNull(result.Exception.InnerException);
-        Assert.IsType<InvalidOperationException>(result.Exception.InnerException);
-        Assert.Contains("Simulated consumer failure", result.Exception.InnerException.Message);
+        Assert.IsType<InvalidOperationException>(result.Exception);
+        Assert.Contains("Simulated consumer failure", result.Exception.Message);
         Assert.Contains("Simulated consumer failure", result.Exception.ToString());
     }
 

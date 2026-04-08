@@ -18,12 +18,12 @@ public abstract class InboundMessageHandlerWorker(
         await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(10, 300)), stoppingToken);
         logger.LogInformation("Started Inbound message worker");
 
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
-        var dbContext = GetContext(scope);
-
         while (!stoppingToken.IsCancellationRequested)
         {
+            await using var scope = serviceProvider.CreateAsyncScope();
+            var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
+            var dbContext = GetContext(scope);
+
             await using var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
 
             try

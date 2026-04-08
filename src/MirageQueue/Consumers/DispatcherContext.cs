@@ -1,11 +1,16 @@
-﻿using MirageQueue.Consumers.Abstractions;
+using MirageQueue.Consumers.Abstractions;
 using System.Reflection;
+using System.Collections.Concurrent;
 
 namespace MirageQueue.Consumers;
 
 public static class DispatcherContext
 {
-    public static List<DispatcherConsumer> Consumers { get; } = [];
+    private static readonly object SyncRoot = new();
+    private static readonly List<DispatcherConsumer> RegisteredConsumers = [];
+    private static readonly ConcurrentDictionary<string, DispatcherConsumer> ConsumersByEndpoint = new(StringComparer.Ordinal);
+
+    public static IReadOnlyCollection<DispatcherConsumer> Consumers => RegisteredConsumers;
 
 
     public static void MapFromAssembly(Assembly assembly, Action<Type> addConsumer)
@@ -24,30 +29,42 @@ public static class DispatcherContext
     {
         var consumerEndpoint = consumerType.FullName!;
 
-        if (Consumers.Any(x => x.ConsumerEndpoint == consumerEndpoint))
-            throw new ArgumentException($"Consumer with endpoint {consumerEndpoint} already registered",
-                nameof(consumerType));
-
-        var interfaces = consumerType.GetInterfaces();
-
-        if (interfaces.All(x => x.GetGenericTypeDefinition() != typeof(IConsumer<>)))
-            throw new ArgumentException("Consumer must implement IConsumer<TMessage> interface", nameof(consumerType));
-
-        var messageType = interfaces
-            .Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConsumer<>))
-            .Select(x => x.GetGenericArguments()[0])
-            .First();
-
-        var messageContract = messageType.FullName!;
-
-        var consumer = new DispatcherConsumer
+        lock (SyncRoot)
         {
-            MessageContract = messageContract,
-            ConsumerEndpoint = consumerEndpoint,
-            ConsumerType = consumerType,
-            MessageType = messageType
-        };
+            if (ConsumersByEndpoint.ContainsKey(consumerEndpoint))
+                throw new ArgumentException($"Consumer with endpoint {consumerEndpoint} already registered",
+                    nameof(consumerType));
 
-        Consumers.Add(consumer);
+            var interfaces = consumerType.GetInterfaces();
+
+            var consumerInterfaces = interfaces
+                .Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConsumer<>))
+                .ToList();
+
+            if (consumerInterfaces.Count == 0)
+                throw new ArgumentException("Consumer must implement IConsumer<TMessage> interface", nameof(consumerType));
+
+            var messageType = consumerInterfaces
+                .Select(x => x.GetGenericArguments()[0])
+                .First();
+
+            var messageContract = messageType.FullName!;
+
+            var consumer = new DispatcherConsumer
+            {
+                MessageContract = messageContract,
+                ConsumerEndpoint = consumerEndpoint,
+                ConsumerType = consumerType,
+                MessageType = messageType
+            };
+
+            RegisteredConsumers.Add(consumer);
+            ConsumersByEndpoint[consumerEndpoint] = consumer;
+        }
+    }
+
+    public static bool TryGetConsumer(string consumerEndpoint, out DispatcherConsumer? consumer)
+    {
+        return ConsumersByEndpoint.TryGetValue(consumerEndpoint, out consumer);
     }
 }

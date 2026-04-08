@@ -23,9 +23,9 @@ public class MessageHandler(
         return await inboundMessageRepository.GetQueuedMessages(dbTransaction, configuration.WorkersQuantity);
     }
 
-    private async Task<List<OutboundMessage>> GetOutboundMessage(IDbContextTransaction dbTransaction)
+    private async Task<List<OutboundMessage>> GetOutboundMessage(IDbContextTransaction dbTransaction, int limit)
     {
-        return await outboundMessageRepository.GetQueuedMessages(dbTransaction, configuration.WorkersQuantity);
+        return await outboundMessageRepository.GetQueuedMessages(dbTransaction, limit);
     }
     
     private async Task<List<ScheduledInboundMessage>> GetScheduledMessages(IDbContextTransaction dbTransaction)
@@ -33,9 +33,9 @@ public class MessageHandler(
         return await scheduledMessageRepository.GetScheduledMessages(dbTransaction, configuration.WorkersQuantity);
     }
 
-    public async Task<List<OutboundMessage>> HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction)
+    public async Task<List<OutboundMessage>> HandleQueuedOutboundMessages(IDbContextTransaction dbTransaction, int limit)
     {
-        var messages = await GetOutboundMessage(dbTransaction);
+        var messages = await GetOutboundMessage(dbTransaction, limit);
         await outboundMessageRepository.SetTransaction(dbTransaction);
 
         foreach (var message in messages)

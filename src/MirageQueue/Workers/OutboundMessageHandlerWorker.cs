@@ -21,20 +21,50 @@ public abstract class OutboundMessageHandlerWorker(
     {
         await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(10, 300)), stoppingToken);
         logger.LogInformation("Started Inbound message worker");
+        var waitingForChannelCapacity = false;
 
         while (!stoppingToken.IsCancellationRequested)
         {
             await using var scope = serviceProvider.CreateAsyncScope();
             var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
             var outboundRepository = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
+            var outboundChannelState = scope.ServiceProvider.GetRequiredService<OutboundChannelState>();
             
             var dbContext = GetContext(scope);
+
+            var channelCapacity = Math.Max(1, configuration.OutboundChannelCapacity);
+            var availableSlots = channelCapacity - outboundChannelState.PendingCount;
+            if (availableSlots <= 0)
+            {
+                if (!waitingForChannelCapacity)
+                {
+                    waitingForChannelCapacity = true;
+                    logger.LogInformation(
+                        "Outbound channel is full ({PendingCount}/{ChannelCapacity}). Waiting for available capacity",
+                        outboundChannelState.PendingCount,
+                        channelCapacity);
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(configuration.PoolingOutboundTime), stoppingToken);
+                continue;
+            }
+
+            if (waitingForChannelCapacity)
+            {
+                waitingForChannelCapacity = false;
+                logger.LogInformation(
+                    "Outbound channel has available capacity again ({PendingCount}/{ChannelCapacity})",
+                    outboundChannelState.PendingCount,
+                    channelCapacity);
+            }
+
+            var fetchLimit = Math.Min(configuration.WorkersQuantity, availableSlots);
             
             await using var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
 
             try
             {
-                var messages = await messageHandler.HandleQueuedOutboundMessages(transaction);
+                var messages = await messageHandler.HandleQueuedOutboundMessages(transaction, fetchLimit);
                 await dbContext.SaveChangesAsync(stoppingToken);
                 await transaction.CommitAsync(stoppingToken);
 
@@ -43,6 +73,7 @@ public abstract class OutboundMessageHandlerWorker(
                     try
                     {
                         await channel.Writer.WriteAsync(message, stoppingToken);
+                        outboundChannelState.IncrementPending();
                     }
                     catch (Exception e)
                     {

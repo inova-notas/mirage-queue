@@ -20,8 +20,9 @@ public class ProcessOutboundMessagesWorkerTests
         var channel = Channel.CreateUnbounded<OutboundMessage>();
         var messageHandler = new Mock<IMessageHandler>();
         var outboundRepo = new Mock<IOutboundMessageRepository>();
-        var logger = new Mock<ILogger<OutboundMessageHandlerWorker>>();
+        var logger = new Mock<ILogger<ProcessOutboundMessagesWorker>>();
         var configuration = new MirageQueueConfiguration { WorkersQuantity = 1 };
+        var outboundChannelState = new OutboundChannelState();
 
         messageHandler
             .Setup(x => x.ProcessOutboundMessage(It.IsAny<OutboundMessage>()))
@@ -32,7 +33,7 @@ public class ProcessOutboundMessagesWorkerTests
         services.AddScoped(_ => outboundRepo.Object);
         var serviceProvider = services.BuildServiceProvider();
 
-        var worker = new ProcessOutboundMessagesWorker(serviceProvider, logger.Object, configuration, channel);
+        var worker = new ProcessOutboundMessagesWorker(serviceProvider, logger.Object, configuration, channel, outboundChannelState);
 
         var message = new OutboundMessage
         {
@@ -70,8 +71,9 @@ public class ProcessOutboundMessagesWorkerTests
         var channel = Channel.CreateUnbounded<OutboundMessage>();
         var messageHandler = new Mock<IMessageHandler>();
         var outboundRepo = new Mock<IOutboundMessageRepository>();
-        var logger = new Mock<ILogger<OutboundMessageHandlerWorker>>();
+        var logger = new Mock<ILogger<ProcessOutboundMessagesWorker>>();
         var configuration = new MirageQueueConfiguration { WorkersQuantity = 1 };
+        var outboundChannelState = new OutboundChannelState();
 
         messageHandler
             .Setup(x => x.ProcessOutboundMessage(It.IsAny<OutboundMessage>()))
@@ -82,7 +84,7 @@ public class ProcessOutboundMessagesWorkerTests
         services.AddScoped(_ => outboundRepo.Object);
         var serviceProvider = services.BuildServiceProvider();
 
-        var worker = new ProcessOutboundMessagesWorker(serviceProvider, logger.Object, configuration, channel);
+        var worker = new ProcessOutboundMessagesWorker(serviceProvider, logger.Object, configuration, channel, outboundChannelState);
 
         var message = new OutboundMessage
         {

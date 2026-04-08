@@ -12,3 +12,7 @@ Accept: application/json
 ###
 POST {{ExampleApi_HostAddress}}/publish-failing
 Accept: application/json
+
+###
+POST {{ExampleApi_HostAddress}}/pressure-test?count=5000&parallelism=200
+Accept: application/json

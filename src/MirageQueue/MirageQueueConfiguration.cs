@@ -18,4 +18,9 @@ public class MirageQueueConfiguration
     /// </summary>
     public int PoolingOutboundTime { get; set; }
     public int WorkersQuantity { get; set; }
+
+    /// <summary>
+    /// Represents the maximum number of outbound messages buffered in memory.
+    /// </summary>
+    public int OutboundChannelCapacity { get; set; }
 }

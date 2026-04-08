@@ -11,20 +11,23 @@ namespace MirageQueue.Workers;
 public class ProcessOutboundMessagesWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<OutboundMessageHandlerWorker> _logger;
+    private readonly ILogger<ProcessOutboundMessagesWorker> _logger;
     private readonly MirageQueueConfiguration _configuration;
     private readonly Channel<OutboundMessage> _channel;
+    private readonly OutboundChannelState _outboundChannelState;
 
     public ProcessOutboundMessagesWorker(
         IServiceProvider serviceProvider,
-        ILogger<OutboundMessageHandlerWorker> logger,
+        ILogger<ProcessOutboundMessagesWorker> logger,
         MirageQueueConfiguration configuration,
-        Channel<OutboundMessage> channel)
+        Channel<OutboundMessage> channel,
+        OutboundChannelState outboundChannelState)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _configuration = configuration;
         _channel = channel;
+        _outboundChannelState = outboundChannelState;
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -48,11 +51,13 @@ public class ProcessOutboundMessagesWorker : BackgroundService
         {
             while (_channel.Reader.TryRead(out var message))
             {
+                _outboundChannelState.DecrementPending();
+
                 await using var scope = _serviceProvider.CreateAsyncScope();
                 var messageHandler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
                 var outboundRepository = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
 
-                _logger.LogInformation("Processing outbound message {MessageId} in worker {WorkerId}", message.Id, id);
+                _logger.LogDebug("Processing outbound message {MessageId} in worker {WorkerId}", message.Id, id);
                 var result = await messageHandler.ProcessOutboundMessage(message);
 
                 if (result.Exception is not null)
