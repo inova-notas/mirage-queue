@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using System.Data.Common;
+using Microsoft.EntityFrameworkCore.Storage;
 using MirageQueue.Common;
 using MirageQueue.Messages.Entities;
 
@@ -8,4 +9,5 @@ public interface IInboundMessageRepository : IRepository<InboundMessage>
 {
     public Task<List<InboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = null, int limit = 10);
     public Task UpdateMessageStatus(Guid id, InboundMessageStatus status, IDbContextTransaction? transaction = null);
+    public Task InsertDirect(InboundMessage message, DbTransaction transaction, CancellationToken cancellationToken = default);
 }
