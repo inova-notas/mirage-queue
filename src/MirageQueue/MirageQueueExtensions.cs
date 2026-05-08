@@ -47,6 +47,7 @@ public static class MirageQueueExtensions
 
     public static void AddConsumer<TConsumer>(this IServiceCollection services) where TConsumer : class, IConsumer
     {
+        DispatcherContext.AddDispatchConsumer(typeof(TConsumer));
         services.AddScoped<TConsumer>();
     }
 

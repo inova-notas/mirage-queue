@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Threading.Channels;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Consumers;
@@ -111,5 +112,91 @@ public class MessageHandlerTests
 
         Assert.Equal(OutboundMessageStatus.Processed, result.Status);
         Assert.Null(result.Exception);
+    }
+
+    [Fact]
+    public async Task HandleQueuedInboundMessages_WhenConversionThrows_ShouldPropagateException()
+    {
+        var transaction = Mock.Of<IDbContextTransaction>();
+        var inboundMessage = new InboundMessage
+        {
+            Id = Guid.NewGuid(),
+            Content = JsonSerializer.Serialize(new DummyMessage { Id = Guid.NewGuid() }),
+            MessageContract = typeof(DummyMessage).FullName!,
+            Status = InboundMessageStatus.New,
+            CreateAt = DateTime.UtcNow,
+            UpdateAt = DateTime.UtcNow
+        };
+
+        var inboundRepo = new Mock<IInboundMessageRepository>();
+        inboundRepo
+            .Setup(x => x.GetQueuedMessages(It.IsAny<IDbContextTransaction>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<InboundMessage> { inboundMessage });
+        inboundRepo
+            .Setup(x => x.UpdateMessageStatus(It.IsAny<Guid>(), It.IsAny<InboundMessageStatus>(), It.IsAny<IDbContextTransaction>()))
+            .ThrowsAsync(new InvalidOperationException("simulated repository failure"));
+
+        var outboundRepo = new Mock<IOutboundMessageRepository>();
+        outboundRepo
+            .Setup(x => x.Any(It.IsAny<System.Linq.Expressions.Expression<Func<OutboundMessage, bool>>>(), It.IsAny<IDbContextTransaction>()))
+            .ReturnsAsync(false);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(new Mock<ILogger<Dispatcher>>().Object);
+        services.AddSingleton<Dispatcher>();
+        var dispatcher = services.BuildServiceProvider().GetRequiredService<Dispatcher>();
+
+        var sut = new MessageHandler(
+            new Mock<ILogger<MessageHandler>>().Object,
+            outboundRepo.Object,
+            inboundRepo.Object,
+            new Mock<IScheduledMessageRepository>().Object,
+            dispatcher,
+            new MirageQueueConfiguration(),
+            Channel.CreateUnbounded<OutboundMessage>());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => sut.HandleQueuedInboundMessages(transaction));
+        Assert.Equal("simulated repository failure", ex.Message);
+    }
+
+    [Fact]
+    public async Task HandleScheduledMessages_WhenConversionThrows_ShouldPropagateException()
+    {
+        var transaction = Mock.Of<IDbContextTransaction>();
+        var scheduledMessage = new ScheduledInboundMessage
+        {
+            Id = Guid.NewGuid(),
+            Content = JsonSerializer.Serialize(new DummyMessage { Id = Guid.NewGuid() }),
+            MessageContract = typeof(DummyMessage).FullName!,
+            Status = ScheduledInboundMessageStatus.WaitingScheduledTime,
+            ExecuteAt = DateTime.UtcNow,
+            CreateAt = DateTime.UtcNow,
+            UpdateAt = DateTime.UtcNow
+        };
+
+        var scheduledRepo = new Mock<IScheduledMessageRepository>();
+        scheduledRepo
+            .Setup(x => x.GetScheduledMessages(It.IsAny<IDbContextTransaction>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<ScheduledInboundMessage> { scheduledMessage });
+        scheduledRepo
+            .Setup(x => x.UpdateMessageStatus(It.IsAny<Guid>(), It.IsAny<ScheduledInboundMessageStatus>(), It.IsAny<IDbContextTransaction>()))
+            .ThrowsAsync(new InvalidOperationException("simulated scheduled failure"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(new Mock<ILogger<Dispatcher>>().Object);
+        services.AddSingleton<Dispatcher>();
+        var dispatcher = services.BuildServiceProvider().GetRequiredService<Dispatcher>();
+
+        var sut = new MessageHandler(
+            new Mock<ILogger<MessageHandler>>().Object,
+            new Mock<IOutboundMessageRepository>().Object,
+            new Mock<IInboundMessageRepository>().Object,
+            scheduledRepo.Object,
+            dispatcher,
+            new MirageQueueConfiguration(),
+            Channel.CreateUnbounded<OutboundMessage>());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => sut.HandleScheduledMessages(transaction));
+        Assert.Equal("simulated scheduled failure", ex.Message);
     }
 }

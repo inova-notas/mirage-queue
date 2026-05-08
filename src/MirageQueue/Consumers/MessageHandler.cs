@@ -77,32 +77,19 @@ public class MessageHandler(
     {
         var inboundMessages = await GetInboundMessages(dbTransaction);
 
-        try
+        foreach (var inboundMessage in inboundMessages)
         {
-            foreach (var inboundMessage in inboundMessages)
-            {
-                await CovertInboundToOutboundMessage(inboundMessage, dbTransaction);
-            }
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error while processing inbound messages");
+            await CovertInboundToOutboundMessage(inboundMessage, dbTransaction);
         }
     }
-    
+
     public async Task HandleScheduledMessages(IDbContextTransaction dbTransaction)
     {
         var scheduledMessages = await GetScheduledMessages(dbTransaction);
-        try
+
+        foreach (var message in scheduledMessages)
         {
-            foreach (var message in scheduledMessages)
-            {
-                await ConvertScheduledToInboundMessage(message, dbTransaction);
-            }
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error while processing scheduled messages");
+            await ConvertScheduledToInboundMessage(message, dbTransaction);
         }
     }
     

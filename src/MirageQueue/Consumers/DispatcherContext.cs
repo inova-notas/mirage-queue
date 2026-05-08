@@ -25,15 +25,14 @@ public static class DispatcherContext
         }
     }
 
-    private static void AddDispatchConsumer(Type consumerType)
+    internal static void AddDispatchConsumer(Type consumerType)
     {
         var consumerEndpoint = consumerType.FullName!;
 
         lock (SyncRoot)
         {
             if (ConsumersByEndpoint.ContainsKey(consumerEndpoint))
-                throw new ArgumentException($"Consumer with endpoint {consumerEndpoint} already registered",
-                    nameof(consumerType));
+                return;
 
             var interfaces = consumerType.GetInterfaces();
 
