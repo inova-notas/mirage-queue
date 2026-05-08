@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using MirageQueue.Common;
@@ -43,5 +44,31 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
         var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
 
         await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"InboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam} WHERE \"Id\" = {idParam}");
+    }
+
+    public async Task InsertDirect(InboundMessage message, DbTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(transaction);
+
+        if (transaction.Connection is null)
+            throw new InvalidOperationException("The supplied transaction is not associated with a connection.");
+
+        await using var cmd = transaction.Connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = """
+            INSERT INTO mirage_queue."InboundMessage"
+                ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt")
+            VALUES
+                (@id, @status, @content::jsonb, @contract, @createAt, @updateAt)
+            """;
+        cmd.Parameters.Add(new NpgsqlParameter("id", message.Id));
+        cmd.Parameters.Add(new NpgsqlParameter("status", (int)message.Status));
+        cmd.Parameters.Add(new NpgsqlParameter("content", message.Content));
+        cmd.Parameters.Add(new NpgsqlParameter("contract", message.MessageContract));
+        cmd.Parameters.Add(new NpgsqlParameter("createAt", message.CreateAt));
+        cmd.Parameters.Add(new NpgsqlParameter("updateAt", (object?)message.UpdateAt ?? DBNull.Value));
+
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 }

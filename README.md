@@ -109,6 +109,110 @@ public class MyService(IPublisher publisher){
 }
 ```
 
+## Transactional Publishing
+
+The basic `IPublisher.Publish` overload writes to its own connection — independent of any transaction your business code is using. If your business `SaveChangesAsync()` succeeds but the publish fails (or vice versa), you get a "ghost commit" or "ghost publish".
+
+To make a publish happen **iff** the business commit happens, MirageQueue ships two APIs that share the caller's transaction. Pick whichever fits your code style.
+
+### Option A: `IDbContextOutbox<TDbContext>` (recommended)
+
+Wraps your business `DbContext` and buffers publishes until you flush. Best when business code emits one or more messages per unit-of-work.
+
+**Setup**
+
+```csharp
+using MirageQueue;
+using MirageQueue.Postgres;
+using MirageQueue.Outbox;
+
+builder.Services.AddMirageQueue();
+builder.Services.AddMirageQueuePostgres(connectionString);
+builder.Services.AddDbContext<OrderDbContext>(o => o.UseNpgsql(connectionString));
+
+// Register the outbox for your DbContext
+builder.Services.AddMirageQueueOutbox<OrderDbContext>();
+```
+
+**Usage**
+
+```csharp
+public class CreateOrderHandler(
+    OrderDbContext db,
+    IDbContextOutbox<OrderDbContext> outbox)
+{
+    public async Task Handle(CreateOrderCommand cmd)
+    {
+        var order = new Order { Id = Guid.NewGuid(), CustomerId = cmd.CustomerId };
+        db.Orders.Add(order);
+
+        // Buffer one or more publishes (synchronous — no DB I/O until flush)
+        outbox.Publish(new OrderCreated(order.Id));
+        outbox.Publish(new InventoryReservationRequested(order.Id, cmd.Items));
+
+        // Atomically: SaveChanges + queue inserts + commit
+        await outbox.SaveChangesAndFlushMessagesAsync();
+    }
+}
+```
+
+`SaveChangesAndFlushMessagesAsync` is **permissive**:
+- If you already opened a transaction (`db.Database.BeginTransactionAsync()`), it joins it and lets you commit.
+- If no transaction is open, it opens one, commits on success, rolls back on failure.
+
+If anything throws — business save, queue insert, anything — both the business rows and the queue rows are rolled back together.
+
+### Option B: Low-level `IPublisher.Publish(message, DbTransaction)`
+
+Use when you want explicit control over the transaction or when buffering doesn't fit your code shape. The publisher writes directly through the `DbTransaction` you pass in.
+
+```csharp
+public class CreateOrderHandler(OrderDbContext db, IPublisher publisher)
+{
+    public async Task Handle(CreateOrderCommand cmd)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        db.Orders.Add(new Order { Id = Guid.NewGuid(), CustomerId = cmd.CustomerId });
+        await db.SaveChangesAsync();
+
+        await publisher.Publish(
+            new OrderCreated(/* ... */),
+            transaction.GetDbTransaction());
+
+        await transaction.CommitAsync();
+    }
+}
+```
+
+The publisher writes the queue row through `transaction.Connection` and enlists on the same `DbTransaction`. No second connection, no second transaction. `Schedule` has the same overload:
+
+```csharp
+await publisher.Schedule(
+    new ReminderMessage(orderId),
+    DateTime.UtcNow.AddDays(1),
+    transaction.GetDbTransaction());
+```
+
+### With `ExecutionStrategy` (retry-on-failure)
+
+If your `DbContext` is configured with `EnableRetryOnFailure()`, you must wrap the unit-of-work in `ExecuteAsync` so the retry covers the whole atomic block:
+
+```csharp
+var strategy = db.Database.CreateExecutionStrategy();
+
+await strategy.ExecuteAsync(async () =>
+{
+    db.Orders.Add(order);
+    outbox.Publish(new OrderCreated(order.Id));
+    await outbox.SaveChangesAndFlushMessagesAsync();
+});
+```
+
+The same pattern works with the low-level `IPublisher` overload — just open the transaction inside the lambda. Each retry attempt opens a fresh transaction; on a transient failure the whole block re-runs as one unit.
+
+> Caveat: until idempotency keys land, a retry that succeeds server-side but loses the commit ACK will produce a duplicate inbound row. Consumers should already be idempotent for at-least-once delivery semantics; this is the same behavior as any redelivered message.
+
 ## Dashboard Integration
 
 The MirageQueue Dashboard provides a comprehensive web interface for monitoring and managing your message queues.
