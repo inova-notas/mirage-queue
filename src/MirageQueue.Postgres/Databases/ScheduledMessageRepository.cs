@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using MirageQueue.Common;
 using MirageQueue.Messages.Entities;
 using MirageQueue.Messages.Repositories;
+using MirageQueue.Publishers.Abstractions;
 using Npgsql;
 
 namespace MirageQueue.Postgres.Databases;
@@ -60,9 +61,9 @@ public class ScheduledMessageRepository : BaseRepository<MirageQueueDbContext, S
         cmd.Transaction = transaction;
         cmd.CommandText = """
             INSERT INTO mirage_queue."ScheduledInboundMessage"
-                ("Id", "Status", "ExecuteAt", "Content", "MessageContract", "CreateAt", "UpdateAt")
+                ("Id", "Status", "ExecuteAt", "Content", "MessageContract", "CreateAt", "UpdateAt", "IdempotencyKey")
             VALUES
-                (@id, @status, @executeAt, @content::jsonb, @contract, @createAt, @updateAt)
+                (@id, @status, @executeAt, @content::jsonb, @contract, @createAt, @updateAt, @idempotencyKey)
             """;
         cmd.Parameters.Add(new NpgsqlParameter("id", message.Id));
         cmd.Parameters.Add(new NpgsqlParameter("status", (int)message.Status));
@@ -71,7 +72,87 @@ public class ScheduledMessageRepository : BaseRepository<MirageQueueDbContext, S
         cmd.Parameters.Add(new NpgsqlParameter("contract", message.MessageContract));
         cmd.Parameters.Add(new NpgsqlParameter("createAt", message.CreateAt));
         cmd.Parameters.Add(new NpgsqlParameter("updateAt", (object?)message.UpdateAt ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("idempotencyKey", (object?)message.IdempotencyKey ?? DBNull.Value));
 
         await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<PublishResult> InsertIfNotExists(ScheduledInboundMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        if (string.IsNullOrEmpty(message.IdempotencyKey))
+            throw new InvalidOperationException($"{nameof(InsertIfNotExists)} requires an {nameof(ScheduledInboundMessage.IdempotencyKey)}.");
+
+        var conn = (NpgsqlConnection)_dbContext.Database.GetDbConnection();
+        var connectionWasClosed = conn.State == ConnectionState.Closed;
+        if (connectionWasClosed)
+            await conn.OpenAsync(cancellationToken);
+
+        try
+        {
+            return await ExecuteInsertIfNotExistsAsync(message, conn, transaction: null, cancellationToken);
+        }
+        finally
+        {
+            if (connectionWasClosed)
+                await conn.CloseAsync();
+        }
+    }
+
+    public async Task<PublishResult> InsertDirectIfNotExists(ScheduledInboundMessage message, DbTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(transaction);
+
+        if (string.IsNullOrEmpty(message.IdempotencyKey))
+            throw new InvalidOperationException($"{nameof(InsertDirectIfNotExists)} requires an {nameof(ScheduledInboundMessage.IdempotencyKey)}.");
+
+        if (transaction.Connection is null)
+            throw new InvalidOperationException("The supplied transaction is not associated with a connection.");
+
+        return await ExecuteInsertIfNotExistsAsync(message, transaction.Connection, transaction, cancellationToken);
+    }
+
+    private static async Task<PublishResult> ExecuteInsertIfNotExistsAsync(
+        ScheduledInboundMessage message,
+        DbConnection conn,
+        DbTransaction? transaction,
+        CancellationToken cancellationToken)
+    {
+        await using (var insertCmd = conn.CreateCommand())
+        {
+            if (transaction is not null) insertCmd.Transaction = transaction;
+            insertCmd.CommandText = """
+                INSERT INTO mirage_queue."ScheduledInboundMessage"
+                    ("Id", "Status", "ExecuteAt", "Content", "MessageContract", "CreateAt", "UpdateAt", "IdempotencyKey")
+                VALUES
+                    (@id, @status, @executeAt, @content::jsonb, @contract, @createAt, @updateAt, @idempotencyKey)
+                ON CONFLICT ("IdempotencyKey") WHERE "IdempotencyKey" IS NOT NULL DO NOTHING
+                RETURNING "Id"
+                """;
+            insertCmd.Parameters.Add(new NpgsqlParameter("id", message.Id));
+            insertCmd.Parameters.Add(new NpgsqlParameter("status", (int)message.Status));
+            insertCmd.Parameters.Add(new NpgsqlParameter("executeAt", message.ExecuteAt));
+            insertCmd.Parameters.Add(new NpgsqlParameter("content", message.Content));
+            insertCmd.Parameters.Add(new NpgsqlParameter("contract", message.MessageContract));
+            insertCmd.Parameters.Add(new NpgsqlParameter("createAt", message.CreateAt));
+            insertCmd.Parameters.Add(new NpgsqlParameter("updateAt", (object?)message.UpdateAt ?? DBNull.Value));
+            insertCmd.Parameters.Add(new NpgsqlParameter("idempotencyKey", message.IdempotencyKey!));
+
+            var insertedId = await insertCmd.ExecuteScalarAsync(cancellationToken);
+            if (insertedId is Guid newId)
+                return new PublishResult(newId, IsDuplicate: false);
+        }
+
+        await using var selectCmd = conn.CreateCommand();
+        if (transaction is not null) selectCmd.Transaction = transaction;
+        selectCmd.CommandText = """SELECT "Id" FROM mirage_queue."ScheduledInboundMessage" WHERE "IdempotencyKey" = @key""";
+        selectCmd.Parameters.Add(new NpgsqlParameter("key", message.IdempotencyKey!));
+
+        var existingId = (Guid)(await selectCmd.ExecuteScalarAsync(cancellationToken)
+            ?? throw new InvalidOperationException("Idempotency key conflict but no existing row found — race condition?"));
+
+        return new PublishResult(existingId, IsDuplicate: true);
     }
 }

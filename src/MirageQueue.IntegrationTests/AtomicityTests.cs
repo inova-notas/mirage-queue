@@ -109,16 +109,30 @@ public class AtomicityTests
 
     private sealed class ThrowingPublisher : IPublisher
     {
+        private static InvalidOperationException Failure() => new("simulated publisher failure");
+
         public Task Publish<TMessage>(TMessage message, CancellationToken cancellationToken = default)
-            where TMessage : class => throw new InvalidOperationException("simulated publisher failure");
+            where TMessage : class => throw Failure();
 
         public Task Publish<TMessage>(TMessage message, DbTransaction transaction, CancellationToken cancellationToken = default)
-            where TMessage : class => throw new InvalidOperationException("simulated publisher failure");
+            where TMessage : class => throw Failure();
+
+        public Task<PublishResult> Publish<TMessage>(TMessage message, string idempotencyKey, CancellationToken cancellationToken = default)
+            where TMessage : class => throw Failure();
+
+        public Task<PublishResult> Publish<TMessage>(TMessage message, string idempotencyKey, DbTransaction transaction, CancellationToken cancellationToken = default)
+            where TMessage : class => throw Failure();
 
         public Task Schedule<TMessage>(TMessage message, DateTime scheduledTime, CancellationToken cancellationToken = default)
-            where TMessage : class => throw new InvalidOperationException("simulated publisher failure");
+            where TMessage : class => throw Failure();
 
         public Task Schedule<TMessage>(TMessage message, DateTime scheduledTime, DbTransaction transaction, CancellationToken cancellationToken = default)
-            where TMessage : class => throw new InvalidOperationException("simulated publisher failure");
+            where TMessage : class => throw Failure();
+
+        public Task<PublishResult> Schedule<TMessage>(TMessage message, DateTime scheduledTime, string idempotencyKey, CancellationToken cancellationToken = default)
+            where TMessage : class => throw Failure();
+
+        public Task<PublishResult> Schedule<TMessage>(TMessage message, DateTime scheduledTime, string idempotencyKey, DbTransaction transaction, CancellationToken cancellationToken = default)
+            where TMessage : class => throw Failure();
     }
 }

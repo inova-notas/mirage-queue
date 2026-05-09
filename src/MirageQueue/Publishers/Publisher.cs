@@ -41,6 +41,29 @@ public class Publisher : IPublisher
         await _inboundMessageRepository.InsertDirect(inboundMessage, transaction, cancellationToken);
     }
 
+    public Task<PublishResult> Publish<TMessage>(TMessage message, string idempotencyKey, CancellationToken cancellationToken = default)
+        where TMessage : class
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentException.ThrowIfNullOrEmpty(idempotencyKey);
+
+        var inboundMessage = BuildInboundMessage(message, idempotencyKey);
+
+        return _inboundMessageRepository.InsertIfNotExists(inboundMessage, cancellationToken);
+    }
+
+    public Task<PublishResult> Publish<TMessage>(TMessage message, string idempotencyKey, DbTransaction transaction, CancellationToken cancellationToken = default)
+        where TMessage : class
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentException.ThrowIfNullOrEmpty(idempotencyKey);
+        ArgumentNullException.ThrowIfNull(transaction);
+
+        var inboundMessage = BuildInboundMessage(message, idempotencyKey);
+
+        return _inboundMessageRepository.InsertDirectIfNotExists(inboundMessage, transaction, cancellationToken);
+    }
+
     public async Task Schedule<TMessage>(TMessage message, DateTime scheduledTime, CancellationToken cancellationToken = default)
         where TMessage : class
     {
@@ -63,7 +86,30 @@ public class Publisher : IPublisher
         await _scheduledMessageRepository.InsertDirect(scheduleMessage, transaction, cancellationToken);
     }
 
-    private static InboundMessage BuildInboundMessage<TMessage>(TMessage message) where TMessage : class
+    public Task<PublishResult> Schedule<TMessage>(TMessage message, DateTime scheduledTime, string idempotencyKey, CancellationToken cancellationToken = default)
+        where TMessage : class
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentException.ThrowIfNullOrEmpty(idempotencyKey);
+
+        var scheduleMessage = BuildScheduledMessage(message, scheduledTime, idempotencyKey);
+
+        return _scheduledMessageRepository.InsertIfNotExists(scheduleMessage, cancellationToken);
+    }
+
+    public Task<PublishResult> Schedule<TMessage>(TMessage message, DateTime scheduledTime, string idempotencyKey, DbTransaction transaction, CancellationToken cancellationToken = default)
+        where TMessage : class
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentException.ThrowIfNullOrEmpty(idempotencyKey);
+        ArgumentNullException.ThrowIfNull(transaction);
+
+        var scheduleMessage = BuildScheduledMessage(message, scheduledTime, idempotencyKey);
+
+        return _scheduledMessageRepository.InsertDirectIfNotExists(scheduleMessage, transaction, cancellationToken);
+    }
+
+    private static InboundMessage BuildInboundMessage<TMessage>(TMessage message, string? idempotencyKey = null) where TMessage : class
     {
         return new InboundMessage
         {
@@ -72,11 +118,12 @@ public class Publisher : IPublisher
             Content = JsonSerializer.Serialize(message),
             Status = InboundMessageStatus.New,
             CreateAt = DateTime.UtcNow,
-            UpdateAt = DateTime.UtcNow
+            UpdateAt = DateTime.UtcNow,
+            IdempotencyKey = idempotencyKey
         };
     }
 
-    private static ScheduledInboundMessage BuildScheduledMessage<TMessage>(TMessage message, DateTime scheduledTime) where TMessage : class
+    private static ScheduledInboundMessage BuildScheduledMessage<TMessage>(TMessage message, DateTime scheduledTime, string? idempotencyKey = null) where TMessage : class
     {
         return new ScheduledInboundMessage
         {
@@ -86,7 +133,8 @@ public class Publisher : IPublisher
             Status = ScheduledInboundMessageStatus.WaitingScheduledTime,
             ExecuteAt = scheduledTime,
             CreateAt = DateTime.UtcNow,
-            UpdateAt = DateTime.UtcNow
+            UpdateAt = DateTime.UtcNow,
+            IdempotencyKey = idempotencyKey
         };
     }
 }

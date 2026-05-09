@@ -122,19 +122,17 @@ public class MessageHandler(
 
     private async Task CovertInboundToOutboundMessage(InboundMessage inboundMessage, IDbContextTransaction dbTransaction)
     {
-        await CreateOutboundMessages(inboundMessage);
+        await CreateOutboundMessages(inboundMessage, dbTransaction);
         await inboundMessageRepository.UpdateMessageStatus(inboundMessage.Id, InboundMessageStatus.Queued,
             dbTransaction);
     }
 
-    private async Task CreateOutboundMessages(InboundMessage inboundMessage)
+    private async Task CreateOutboundMessages(InboundMessage inboundMessage, IDbContextTransaction dbTransaction)
     {
         var consumers = dispatcher.Consumers.Where(x => x.MessageContract == inboundMessage.MessageContract);
 
         foreach (var consumer in consumers)
         {
-            if (await outboundMessageRepository.Any(x => x.ConsumerEndpoint == consumer.ConsumerEndpoint
-                                                                && x.InboundMessageId == inboundMessage.Id)) continue;
             var outboundMessage = new OutboundMessage
             {
                 Id = NewId.NextSequentialGuid(),
@@ -146,7 +144,7 @@ public class MessageHandler(
                 InboundMessageId = inboundMessage.Id
             };
 
-            await outboundMessageRepository.InsertAsync(outboundMessage);
+            await outboundMessageRepository.InsertIfNotExists(outboundMessage, dbTransaction);
         }
     }
 }

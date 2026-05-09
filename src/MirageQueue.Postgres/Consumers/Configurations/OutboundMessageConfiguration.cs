@@ -27,5 +27,8 @@ public class OutboundMessageConfiguration : IEntityTypeConfiguration<OutboundMes
         builder.Property(x => x.ExceptionType)
             .HasMaxLength(500)
             .IsRequired(false);
+
+        builder.HasIndex(x => new { x.InboundMessageId, x.ConsumerEndpoint })
+            .IsUnique();
     }
 }

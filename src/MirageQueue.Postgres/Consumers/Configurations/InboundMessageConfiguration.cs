@@ -15,5 +15,12 @@ public class InboundMessageConfiguration : IEntityTypeConfiguration<InboundMessa
 
         builder.Property(x => x.MessageContract)
             .HasMaxLength(200);
+
+        builder.Property(x => x.IdempotencyKey)
+            .HasMaxLength(200);
+
+        builder.HasIndex(x => x.IdempotencyKey)
+            .IsUnique()
+            .HasFilter("\"IdempotencyKey\" IS NOT NULL");
     }
 }

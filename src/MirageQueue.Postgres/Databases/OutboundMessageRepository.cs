@@ -55,4 +55,33 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
 
         await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"OutboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam}, \"ErrorMessage\" = {errorMessageParam}, \"StackTrace\" = {stackTraceParam}, \"ExceptionType\" = {exceptionTypeParam} WHERE \"Id\" = {idParam}");
     }
+
+    public async Task<bool> InsertIfNotExists(OutboundMessage message, IDbContextTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction(), cancellationToken);
+
+        var idParam = new NpgsqlParameter("id", message.Id);
+        var statusParam = new NpgsqlParameter("status", (int)message.Status);
+        var consumerEndpointParam = new NpgsqlParameter("consumerEndpoint", message.ConsumerEndpoint);
+        var inboundMessageIdParam = new NpgsqlParameter("inboundMessageId", message.InboundMessageId);
+        var contentParam = new NpgsqlParameter("content", message.Content);
+        var contractParam = new NpgsqlParameter("contract", message.MessageContract);
+        var createAtParam = new NpgsqlParameter("createAt", message.CreateAt);
+        var updateAtParam = new NpgsqlParameter("updateAt", (object?)message.UpdateAt ?? DBNull.Value);
+
+        var rowsAffected = await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO mirage_queue."OutboundMessage"
+                ("Id", "Status", "ConsumerEndpoint", "InboundMessageId", "Content", "MessageContract", "CreateAt", "UpdateAt")
+            VALUES
+                ({idParam}, {statusParam}, {consumerEndpointParam}, {inboundMessageIdParam}, {contentParam}::jsonb, {contractParam}, {createAtParam}, {updateAtParam})
+            ON CONFLICT ("InboundMessageId", "ConsumerEndpoint") DO NOTHING
+            """,
+            cancellationToken);
+
+        return rowsAffected > 0;
+    }
 }
