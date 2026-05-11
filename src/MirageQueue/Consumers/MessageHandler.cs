@@ -40,7 +40,7 @@ public class MessageHandler(
 
         foreach (var message in messages)
         {
-            await outboundMessageRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Processing, dbTransaction);
+            await outboundMessageRepository.MarkProcessing(message.Id, dbTransaction);
         }
 
         return messages;

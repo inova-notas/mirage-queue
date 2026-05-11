@@ -3,6 +3,7 @@ using MirageQueue.Consumers;
 using MirageQueue.Consumers.Abstractions;
 using MirageQueue.Publishers;
 using MirageQueue.Publishers.Abstractions;
+using MirageQueue.Retry;
 using System.Reflection;
 using System.Threading.Channels;
 using MirageQueue.Messages.Entities;
@@ -19,6 +20,8 @@ public static class MirageQueueExtensions
         PoolingOutboundTime = 500,
         WorkersQuantity = 10,
         OutboundChannelCapacity = 500,
+        ProcessingLeaseDuration = TimeSpan.FromMinutes(5),
+        StuckProcessingPollingTime = 60000,
     };
     
     public static void AddMirageQueue(this IServiceCollection services)
@@ -48,6 +51,19 @@ public static class MirageQueueExtensions
     public static void AddConsumer<TConsumer>(this IServiceCollection services) where TConsumer : class, IConsumer
     {
         DispatcherContext.AddDispatchConsumer(typeof(TConsumer));
+        services.AddScoped<TConsumer>();
+    }
+
+    public static void AddConsumer<TConsumer>(this IServiceCollection services, Action<RetryPolicyBuilder> configurePolicy)
+        where TConsumer : class, IConsumer
+    {
+        ArgumentNullException.ThrowIfNull(configurePolicy);
+
+        var builder = new RetryPolicyBuilder();
+        configurePolicy(builder);
+        var policy = builder.Build();
+
+        DispatcherContext.AddDispatchConsumer(typeof(TConsumer), policy);
         services.AddScoped<TConsumer>();
     }
 

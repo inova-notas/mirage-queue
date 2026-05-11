@@ -285,7 +285,47 @@ public class DashboardService : IDashboardService
     {
         try
         {
-            await _outboundRepository.UpdateMessageStatus(id, OutboundMessageStatus.New);
+            // DeadLettered rows need their retry state reset (AttemptCount, NextRetryAt)
+            // so they don't immediately re-deadletter on the next dispatch.
+            var existing = await _outboundRepository.FirstOrDefaultAsync(x => x.Id == id);
+            if (existing?.Status == OutboundMessageStatus.DeadLettered)
+            {
+                await _outboundRepository.ReplayFromDeadLetter(id);
+            }
+            else
+            {
+                await _outboundRepository.UpdateMessageStatus(id, OutboundMessageStatus.New);
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> ReplayDeadLetterAsync(Guid id)
+    {
+        try
+        {
+            await _outboundRepository.ReplayFromDeadLetter(id);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteOutboundMessageAsync(Guid id)
+    {
+        try
+        {
+            var existing = await _outboundRepository.FirstOrDefaultAsync(x => x.Id == id);
+            if (existing is null) return false;
+
+            await _outboundRepository.Delete(existing);
+            await _outboundRepository.SaveChanges();
             return true;
         }
         catch

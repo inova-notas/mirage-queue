@@ -14,6 +14,8 @@ public interface IDashboardService
     Task<bool> RequeueInboundMessageAsync(Guid id);
     Task<bool> RequeueOutboundMessageAsync(Guid id);
     Task<bool> RequeueScheduledMessageAsync(Guid id);
+    Task<bool> ReplayDeadLetterAsync(Guid id);
+    Task<bool> DeleteOutboundMessageAsync(Guid id);
     Task<List<string>> GetDistinctContractsAsync();
     Task<List<string>> GetDistinctEndpointsAsync();
 }

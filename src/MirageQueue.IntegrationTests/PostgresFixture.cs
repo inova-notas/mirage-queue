@@ -103,6 +103,9 @@ public class PostgresFixture : IAsyncLifetime
     {
         var services = new ServiceCollection();
 
+        // Logging is required by MessageHandler, Dispatcher, and workers.
+        services.AddLogging();
+
         // Core: register publisher + dispatcher etc. without hosted services so the workers don't race the tests.
         services.AddMirageQueue();
         services.RemoveAll<Microsoft.Extensions.Hosting.IHostedService>();

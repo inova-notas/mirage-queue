@@ -1,8 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Messages.Entities;
-using Polly;
-using Polly.Retry;
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Text.Json;
@@ -14,7 +12,6 @@ public class Dispatcher(IServiceProvider serviceProvider,
 {
     public IEnumerable<DispatcherConsumer> Consumers => DispatcherContext.Consumers;
 
-    private readonly AsyncRetryPolicy RetryPolicy = Policy.Handle<Exception>().RetryAsync(3);
     private static readonly ConcurrentDictionary<Type, Func<object, object, Task>> ProcessDelegates = new();
 
     public async Task ProcessOutboundMessage(OutboundMessage outboundMessage)
@@ -30,7 +27,20 @@ public class Dispatcher(IServiceProvider serviceProvider,
         var message = GetMessage(outboundMessage, consumer.MessageType);
         var processDelegate = ProcessDelegates.GetOrAdd(consumer.ConsumerType, type => BuildProcessDelegate(type, consumer.MessageType));
 
-        await RetryPolicy.ExecuteAsync(() => processDelegate(consumerInstance, message));
+        var policy = consumer.RetryPolicy;
+        for (var attempt = 0; attempt <= policy.TransientAttempts; attempt++)
+        {
+            try
+            {
+                await processDelegate(consumerInstance, message);
+                return;
+            }
+            catch (Exception ex) when (attempt < policy.TransientAttempts && policy.IsTransient(ex))
+            {
+                logger.LogDebug(ex, "Transient failure dispatching {MessageId} to {ConsumerEndpoint} (in-process attempt {Attempt}/{TransientAttempts})",
+                    outboundMessage.Id, consumer.ConsumerEndpoint, attempt + 1, policy.TransientAttempts);
+            }
+        }
     }
 
     private static object GetMessage(BaseMessage baseMessage, Type messageType)

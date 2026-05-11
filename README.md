@@ -211,7 +211,166 @@ await strategy.ExecuteAsync(async () =>
 
 The same pattern works with the low-level `IPublisher` overload — just open the transaction inside the lambda. Each retry attempt opens a fresh transaction; on a transient failure the whole block re-runs as one unit.
 
-> Caveat: until idempotency keys land, a retry that succeeds server-side but loses the commit ACK will produce a duplicate inbound row. Consumers should already be idempotent for at-least-once delivery semantics; this is the same behavior as any redelivered message.
+> Caveat: a retry that succeeds server-side but loses the commit ACK will produce a duplicate inbound row unless you pass an idempotency key. Either use a keyed publish overload (`publisher.Publish(message, "order-{id}", transaction)`), or ensure your consumers are idempotent for at-least-once delivery — same as any redelivered message.
+
+## Idempotency Keys
+
+For at-least-once delivery semantics, a publish can sometimes be retried — either by your caller (HTTP retry, message-bus redelivery, an `ExecutionStrategy` after a commit-ACK loss) or by your own application logic. Without an idempotency key, each retry produces a fresh inbound row and consumers see duplicates.
+
+Pass an idempotency key to make duplicate publishes a server-side no-op:
+
+```csharp
+public class OrderService(IPublisher publisher)
+{
+    public async Task PublishOrderCreated(Order order)
+    {
+        var result = await publisher.Publish(
+            new OrderCreated(order.Id, order.Total),
+            idempotencyKey: $"order-{order.Id}");
+
+        if (result.IsDuplicate)
+        {
+            // Already published earlier; result.MessageId points to the original inbound row.
+        }
+    }
+}
+```
+
+The keyed overload returns `PublishResult`:
+
+```csharp
+public readonly record struct PublishResult(Guid? MessageId, bool IsDuplicate);
+```
+
+- `IsDuplicate = false`: a new inbound row was written; `MessageId` is its id.
+- `IsDuplicate = true`: a row with the same key already existed; `MessageId` is the existing row's id (so you can join back to it).
+
+Under the hood, the inbound and scheduled tables have a nullable `IdempotencyKey` column with a partial unique index (`WHERE IdempotencyKey IS NOT NULL`). Unkeyed publishes still insert a fresh row every time — the index ignores them — so opting in is per-call.
+
+### Keyed overloads
+
+All four publishing entry points have a keyed variant:
+
+```csharp
+// Standalone publish
+await publisher.Publish(message, idempotencyKey: "key");
+await publisher.Schedule(message, scheduledTime, idempotencyKey: "key");
+
+// Transactional publish (combines with Phase 1's outbox)
+await publisher.Publish(message, idempotencyKey: "key", transaction.GetDbTransaction());
+await publisher.Schedule(message, scheduledTime, idempotencyKey: "key", transaction.GetDbTransaction());
+```
+
+### With `IDbContextOutbox<TDbContext>`
+
+The outbox wrapper has matching overloads. `SaveChangesAndFlushMessagesAsync` returns `IReadOnlyList<PublishResult>` — one entry per buffered publish, in call order:
+
+```csharp
+public class CreateOrderHandler(
+    OrderDbContext db,
+    IDbContextOutbox<OrderDbContext> outbox)
+{
+    public async Task Handle(CreateOrderCommand cmd)
+    {
+        var order = new Order { Id = Guid.NewGuid(), CustomerId = cmd.CustomerId };
+        db.Orders.Add(order);
+
+        outbox.Publish(new OrderCreated(order.Id), idempotencyKey: $"order-{order.Id}");
+        outbox.Publish(new InventoryReservationRequested(order.Id, cmd.Items));  // unkeyed
+
+        var results = await outbox.SaveChangesAndFlushMessagesAsync();
+
+        // results[0] is the keyed OrderCreated: IsDuplicate tells you whether it was new.
+        // results[1] is the unkeyed publish: IsDuplicate is always false, MessageId is null.
+    }
+}
+```
+
+### What the key dedups (and what it doesn't)
+
+- **Per-table**: the inbound and scheduled tables have separate partial unique indexes, so `Publish(msg, "key-X")` and `Schedule(msg, time, "key-X")` are **independent**. Use distinct prefixes (`"publish-x"` vs `"schedule-x"`) if you want them to share a namespace.
+- **Per-row, not per-handler**: the key dedups the inbound row. **Fan-out** to multiple consumers is also deduped — but via a separate, automatic mechanism: a unique index on `(InboundMessageId, ConsumerEndpoint)` in the outbound table. You don't pass anything for fan-out dedup; it's always on.
+- **Not for consumer-side idempotency**: at-least-once delivery still applies. If a worker crashes after the consumer ran but before the row transitioned to `Processed`, the row will be re-dispatched. Consumers should still be idempotent for that case (which the stuck-Processing reaper handles — see below).
+
+### Choosing a key
+
+Natural business identifiers work best: `"order-{orderId}"`, `"webhook-{providerEventId}"`, `"stripe-{idempotencyKeyHeader}"`. The column is `varchar(200)`; pick something stable across retries.
+
+## Retry Policies and Dead Letter Queue
+
+By default, when a consumer throws an exception MirageQueue retries up to 3 times in-process for transient errors (timeouts, deadlocks, socket failures, transient Postgres SQL states), then transitions the row to `Status = Failed`. That preserves the pre-v2.7 baseline.
+
+For more control, attach a **retry policy** when registering the consumer:
+
+```csharp
+builder.Services.AddConsumer<OrderShippedConsumer>(p => p
+    .MaxAttempts(5)                                              // up to 5 total dispatches
+    .TransientAttempts(3)                                        // 3 in-process retries per dispatch (transient only)
+    .ExponentialBackoff(TimeSpan.FromSeconds(1), factor: 2));    // wait 1s, 2s, 4s, 8s between dispatches
+```
+
+Two retry layers stack:
+
+1. **In-process retries** (`TransientAttempts`) — tight loop within one dispatch. For transient errors only. No DB write, no `AttemptCount` increment. Survives nothing — process death loses this.
+2. **Persisted retries** (`MaxAttempts`) — on dispatch failure (transient-exhausted or non-transient), the row goes back to `Status = New` with `AttemptCount++` and `NextRetryAt` computed from the backoff strategy. Worker pickup honors `NextRetryAt`, so retries survive application restarts.
+
+When `AttemptCount >= MaxAttempts` and the dispatch still fails, the row transitions to a terminal state:
+
+- `Status = DeadLettered` if a retry policy was attached (Phase 3 terminal).
+- `Status = Failed` if no policy was attached (legacy behavior).
+
+### Backoff strategies
+
+```csharp
+.NoBackoff()                                                    // retry immediately
+.ConstantBackoff(TimeSpan.FromSeconds(30))                      // always 30s between dispatches
+.LinearBackoff(TimeSpan.FromSeconds(10),                        // 10s, 20s, 30s, ...
+               max: TimeSpan.FromMinutes(2))                    //   capped at 2 min
+.ExponentialBackoff(TimeSpan.FromSeconds(1), factor: 2,         // 1s, 2s, 4s, 8s, ...
+                    max: TimeSpan.FromMinutes(5))               //   capped at 5 min
+```
+
+Backoff is computed purely from `AttemptCount` (a persisted column), so a restart between attempts can't drift or compress the schedule — the next worker reads the stored count, picks the row up at `NextRetryAt`, and computes the next delay from there.
+
+### Customizing transient classification
+
+The default classifier recognises `TimeoutException`, `DbUpdateConcurrencyException`, `SocketException`, and `Npgsql.PostgresException` with transient SQL states (serialization failures, deadlocks, connection failures). Override or extend per consumer:
+
+```csharp
+.TransientWhen(ex => ex is MyDomainTimeoutException)        // replace the default classifier
+.TransientWhenAlso(ex => ex is MyDomainTransientException)  // OR-extend the default
+```
+
+### Dead Letter Queue
+
+`DeadLettered` rows appear in the existing dashboard via the outbound message list with status filter `DeadLettered`. The dashboard's Requeue action on a `DeadLettered` row resets:
+
+- `Status = New`
+- `AttemptCount = 0`
+- `NextRetryAt = null`
+- `ProcessingStartedAt = null`
+- error fields cleared
+
+The retry policy then attempts the row from scratch. Programmatic replay is available via `IOutboundMessageRepository.ReplayFromDeadLetter(Guid id)`.
+
+### Stuck-Processing recovery
+
+If a worker dies mid-dispatch (crash, SIGKILL, OOM) the row sits at `Status = Processing` indefinitely without recovery — the standard pickup query only sees `Status = New`. The `PgStuckProcessingReaperWorker` is registered automatically by `AddMirageQueuePostgres` and periodically scans for rows whose `ProcessingStartedAt` is older than `ProcessingLeaseDuration` (default 5 minutes), then reclaims them via the same retry/DLQ decision as a normal dispatch failure:
+
+- Room to retry → `Status = New` with backoff (consults the consumer's policy)
+- `MaxAttempts` exhausted → terminal (`DeadLettered` if policy attached, else `Failed`)
+
+Two knobs on `MirageQueueConfiguration`:
+
+```csharp
+builder.Services.AddMirageQueue(options =>
+{
+    options.ProcessingLeaseDuration = TimeSpan.FromMinutes(10);   // increase if consumers can run >5 minutes
+    options.StuckProcessingPollingTime = 30000;                   // ms between reaper sweeps; default 60s
+});
+```
+
+> **Important**: the lease must be longer than the longest legitimate consumer execution. Otherwise the reaper will reclaim still-running messages and you'll get duplicates. When in doubt, err on the longer side.
 
 ## Dashboard Integration
 

@@ -28,7 +28,20 @@ public class OutboundMessageConfiguration : IEntityTypeConfiguration<OutboundMes
             .HasMaxLength(500)
             .IsRequired(false);
 
+        builder.Property(x => x.AttemptCount)
+            .HasDefaultValue(0);
+
+        builder.Property(x => x.NextRetryAt)
+            .IsRequired(false);
+
+        builder.Property(x => x.ProcessingStartedAt)
+            .IsRequired(false);
+
         builder.HasIndex(x => new { x.InboundMessageId, x.ConsumerEndpoint })
             .IsUnique();
+
+        builder.HasIndex(x => new { x.Status, x.NextRetryAt });
+
+        builder.HasIndex(x => new { x.Status, x.ProcessingStartedAt });
     }
 }

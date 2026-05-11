@@ -23,10 +23,135 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
 
+        var nowParam = new NpgsqlParameter("nowParam", DateTime.UtcNow);
+
         return await _dbContext.Set<OutboundMessage>()
-            .FromSql($"SELECT * FROM mirage_queue.\"OutboundMessage\" WHERE \"Status\" = {_statusParam} FOR UPDATE SKIP LOCKED LIMIT {limit}")
+            .FromSql($"""
+                SELECT * FROM mirage_queue."OutboundMessage"
+                WHERE "Status" = {_statusParam}
+                  AND ("NextRetryAt" IS NULL OR "NextRetryAt" <= {nowParam})
+                FOR UPDATE SKIP LOCKED
+                LIMIT {limit}
+                """)
             .AsNoTracking()
             .ToListAsync();
+    }
+
+    public async Task MarkProcessing(Guid id, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var idParam = new NpgsqlParameter("idParam", id);
+        var statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.Processing);
+        var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
+
+        await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            UPDATE mirage_queue."OutboundMessage"
+            SET "Status" = {statusParam}, "UpdateAt" = {updatedParam}, "ProcessingStartedAt" = {updatedParam}
+            WHERE "Id" = {idParam}
+            """);
+    }
+
+    public async Task MarkForRetry(Guid id, int attemptCount, DateTime nextRetryAt, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var idParam = new NpgsqlParameter("idParam", id);
+        var statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.New);
+        var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
+        var attemptParam = new NpgsqlParameter("attemptParam", attemptCount);
+        var nextRetryParam = new NpgsqlParameter("nextRetryParam", nextRetryAt);
+        var errorMessageParam = new NpgsqlParameter("errorMessageParam", (object?)errorMessage ?? DBNull.Value);
+        var stackTraceParam = new NpgsqlParameter("stackTraceParam", (object?)stackTrace ?? DBNull.Value);
+        var exceptionTypeParam = new NpgsqlParameter("exceptionTypeParam", (object?)exceptionType ?? DBNull.Value);
+
+        await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            UPDATE mirage_queue."OutboundMessage"
+            SET "Status" = {statusParam},
+                "UpdateAt" = {updatedParam},
+                "AttemptCount" = {attemptParam},
+                "NextRetryAt" = {nextRetryParam},
+                "ProcessingStartedAt" = NULL,
+                "ErrorMessage" = {errorMessageParam},
+                "StackTrace" = {stackTraceParam},
+                "ExceptionType" = {exceptionTypeParam}
+            WHERE "Id" = {idParam}
+            """);
+    }
+
+    public async Task MarkDeadLettered(Guid id, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var idParam = new NpgsqlParameter("idParam", id);
+        var statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.DeadLettered);
+        var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
+        var errorMessageParam = new NpgsqlParameter("errorMessageParam", (object?)errorMessage ?? DBNull.Value);
+        var stackTraceParam = new NpgsqlParameter("stackTraceParam", (object?)stackTrace ?? DBNull.Value);
+        var exceptionTypeParam = new NpgsqlParameter("exceptionTypeParam", (object?)exceptionType ?? DBNull.Value);
+
+        await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            UPDATE mirage_queue."OutboundMessage"
+            SET "Status" = {statusParam},
+                "UpdateAt" = {updatedParam},
+                "ProcessingStartedAt" = NULL,
+                "ErrorMessage" = {errorMessageParam},
+                "StackTrace" = {stackTraceParam},
+                "ExceptionType" = {exceptionTypeParam}
+            WHERE "Id" = {idParam}
+            """);
+    }
+
+    public async Task<List<OutboundMessage>> GetStuckProcessingMessages(TimeSpan leaseDuration, int limit, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var processingParam = new NpgsqlParameter("processingParam", (int)OutboundMessageStatus.Processing);
+        var cutoffParam = new NpgsqlParameter("cutoffParam", DateTime.UtcNow - leaseDuration);
+
+        return await _dbContext.Set<OutboundMessage>()
+            .FromSql($"""
+                SELECT * FROM mirage_queue."OutboundMessage"
+                WHERE "Status" = {processingParam}
+                  AND "ProcessingStartedAt" IS NOT NULL
+                  AND "ProcessingStartedAt" < {cutoffParam}
+                FOR UPDATE SKIP LOCKED
+                LIMIT {limit}
+                """)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    public async Task ReplayFromDeadLetter(Guid id, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var idParam = new NpgsqlParameter("idParam", id);
+        var statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.New);
+        var deadLetteredParam = new NpgsqlParameter("deadLetteredParam", (int)OutboundMessageStatus.DeadLettered);
+        var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
+
+        await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            UPDATE mirage_queue."OutboundMessage"
+            SET "Status" = {statusParam},
+                "UpdateAt" = {updatedParam},
+                "AttemptCount" = 0,
+                "NextRetryAt" = NULL,
+                "ProcessingStartedAt" = NULL,
+                "ErrorMessage" = NULL,
+                "StackTrace" = NULL,
+                "ExceptionType" = NULL
+            WHERE "Id" = {idParam} AND "Status" = {deadLetteredParam}
+            """);
     }
     
     public async Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, IDbContextTransaction? transaction = default)
@@ -53,7 +178,7 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         var stackTraceParam = new NpgsqlParameter("stackTraceParam", (object?)stackTrace ?? DBNull.Value);
         var exceptionTypeParam = new NpgsqlParameter("exceptionTypeParam", (object?)exceptionType ?? DBNull.Value);
 
-        await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"OutboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam}, \"ErrorMessage\" = {errorMessageParam}, \"StackTrace\" = {stackTraceParam}, \"ExceptionType\" = {exceptionTypeParam} WHERE \"Id\" = {idParam}");
+        await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"OutboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam}, \"ProcessingStartedAt\" = NULL, \"ErrorMessage\" = {errorMessageParam}, \"StackTrace\" = {stackTraceParam}, \"ExceptionType\" = {exceptionTypeParam} WHERE \"Id\" = {idParam}");
     }
 
     public async Task<bool> InsertIfNotExists(OutboundMessage message, IDbContextTransaction? transaction = null, CancellationToken cancellationToken = default)

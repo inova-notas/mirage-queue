@@ -2,9 +2,11 @@ using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MirageQueue.Consumers;
 using MirageQueue.Consumers.Abstractions;
 using MirageQueue.Messages.Entities;
 using MirageQueue.Messages.Repositories;
+using MirageQueue.Retry;
 
 namespace MirageQueue.Workers;
 
@@ -60,20 +62,41 @@ public class ProcessOutboundMessagesWorker : BackgroundService
                 _logger.LogDebug("Processing outbound message {MessageId} in worker {WorkerId}", message.Id, id);
                 var result = await messageHandler.ProcessOutboundMessage(message);
 
-                if (result.Exception is not null)
-                {
-                    await outboundRepository.UpdateMessageStatus(
-                        message.Id,
-                        OutboundMessageStatus.Failed,
-                        result.Exception?.InnerException?.Message ?? result.Exception?.Message,
-                        result.Exception?.InnerException?.ToString() ?? result.Exception?.ToString(),
-                        result.Exception?.InnerException?.GetType().FullName ?? result.Exception?.GetType().FullName);
-                }
-                else
+                if (result.Exception is null)
                 {
                     await outboundRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Processed);
+                    continue;
                 }
+
+                await HandleFailureAsync(message, result.Exception, outboundRepository);
             }
+        }
+    }
+
+    internal static async Task HandleFailureAsync(OutboundMessage message, Exception exception, IOutboundMessageRepository outboundRepository)
+    {
+        var rootCause = exception.InnerException ?? exception;
+        var errorMessage = rootCause.Message;
+        var stackTrace = rootCause.ToString();
+        var exceptionType = rootCause.GetType().FullName;
+
+        var (policy, hasExplicitPolicy) = RetryPolicy.Resolve(message.ConsumerEndpoint);
+        var newAttempts = message.AttemptCount + 1;
+
+        if (newAttempts < policy.MaxAttempts)
+        {
+            var nextRetryAt = DateTime.UtcNow + policy.Backoff.ComputeDelay(newAttempts);
+            await outboundRepository.MarkForRetry(message.Id, newAttempts, nextRetryAt, errorMessage, stackTrace, exceptionType);
+            return;
+        }
+
+        if (hasExplicitPolicy)
+        {
+            await outboundRepository.MarkDeadLettered(message.Id, errorMessage, stackTrace, exceptionType);
+        }
+        else
+        {
+            await outboundRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Failed, errorMessage, stackTrace, exceptionType);
         }
     }
 }

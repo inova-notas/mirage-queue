@@ -32,6 +32,7 @@
     <ItemGroup>
         <ProjectReference Include="..\MirageQueue\MirageQueue.csproj" />
         <ProjectReference Include="..\MirageQueue.Postgres\MirageQueue.Postgres.csproj" />
+        <ProjectReference Include="..\MirageQueue.Dashboard\MirageQueue.Dashboard.csproj" />
     </ItemGroup>
 
 </Project>

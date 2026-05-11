@@ -9,6 +9,9 @@ public class OutboundMessage : BaseMessage
     public string? ErrorMessage { get; set; }
     public string? StackTrace { get; set; }
     public string? ExceptionType { get; set; }
+    public int AttemptCount { get; set; }
+    public DateTime? NextRetryAt { get; set; }
+    public DateTime? ProcessingStartedAt { get; set; }
 
     public void ChangeStatus(OutboundMessageStatus status)
     {

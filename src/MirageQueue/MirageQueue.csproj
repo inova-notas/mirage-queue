@@ -19,11 +19,15 @@
       <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.5" />
       <PackageReference Include="NewId" Version="4.0.1" />
-      <PackageReference Include="Polly" Version="8.6.6" />
     </ItemGroup>
 
     <ItemGroup>
         <None Include="../../README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="MirageQueue.Tests" />
+        <InternalsVisibleTo Include="MirageQueue.IntegrationTests" />
     </ItemGroup>
 
 </Project>

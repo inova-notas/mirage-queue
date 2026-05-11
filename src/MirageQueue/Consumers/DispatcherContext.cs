@@ -1,4 +1,5 @@
 using MirageQueue.Consumers.Abstractions;
+using MirageQueue.Retry;
 using System.Reflection;
 using System.Collections.Concurrent;
 
@@ -25,14 +26,24 @@ public static class DispatcherContext
         }
     }
 
-    internal static void AddDispatchConsumer(Type consumerType)
+    internal static void AddDispatchConsumer(Type consumerType, RetryPolicy? retryPolicy = null)
     {
         var consumerEndpoint = consumerType.FullName!;
 
         lock (SyncRoot)
         {
-            if (ConsumersByEndpoint.ContainsKey(consumerEndpoint))
+            if (ConsumersByEndpoint.TryGetValue(consumerEndpoint, out var existing))
+            {
+                // Allow attaching a policy to a consumer that was already registered
+                // (e.g., AddConsumersFromAssembly ran first, then AddConsumer<T> with
+                // an explicit policy override).
+                if (retryPolicy is not null)
+                {
+                    existing.RetryPolicy = retryPolicy;
+                    existing.HasExplicitPolicy = true;
+                }
                 return;
+            }
 
             var interfaces = consumerType.GetInterfaces();
 
@@ -54,7 +65,9 @@ public static class DispatcherContext
                 MessageContract = messageContract,
                 ConsumerEndpoint = consumerEndpoint,
                 ConsumerType = consumerType,
-                MessageType = messageType
+                MessageType = messageType,
+                RetryPolicy = retryPolicy ?? RetryPolicy.Default,
+                HasExplicitPolicy = retryPolicy is not null,
             };
 
             RegisteredConsumers.Add(consumer);

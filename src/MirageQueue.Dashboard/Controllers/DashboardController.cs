@@ -92,4 +92,30 @@ public class DashboardController : Controller
 
         return RedirectToAction("MessageDetail", new { id, type });
     }
+
+    [Route("dead-letter/{id:guid}/replay")]
+    [HttpPost]
+    public async Task<IActionResult> ReplayDeadLetter(Guid id)
+    {
+        var success = await _dashboardService.ReplayDeadLetterAsync(id);
+        if (success)
+            TempData["SuccessMessage"] = "Dead-lettered message replayed (AttemptCount reset to 0).";
+        else
+            TempData["ErrorMessage"] = "Failed to replay dead-lettered message.";
+
+        return RedirectToAction("MessageDetail", new { id, type = "outbound" });
+    }
+
+    [Route("dead-letter/{id:guid}")]
+    [HttpDelete]
+    public async Task<IActionResult> DeleteDeadLetter(Guid id)
+    {
+        var success = await _dashboardService.DeleteOutboundMessageAsync(id);
+        if (success)
+            TempData["SuccessMessage"] = "Dead-lettered message deleted.";
+        else
+            TempData["ErrorMessage"] = "Failed to delete dead-lettered message.";
+
+        return RedirectToAction("Messages", new { type = "outbound", statusFilter = "DeadLettered" });
+    }
 }

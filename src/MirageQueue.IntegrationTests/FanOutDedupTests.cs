@@ -22,7 +22,7 @@ public class FanOutDedupTests
     public async Task InsertOutboundIfNotExists_FirstCall_ReturnsTrueAndPersistsRow()
     {
         await _fixture.ResetAsync();
-        var inboundId = await SeedInboundAsync();
+        var inboundId = await _fixture.SeedInboundAsync();
 
         await using var scope = _fixture.Services.CreateAsyncScope();
         var outboundRepo = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
@@ -39,7 +39,7 @@ public class FanOutDedupTests
     public async Task InsertOutboundIfNotExists_SameInboundAndConsumer_SecondCallReturnsFalseAndPersistsNothingNew()
     {
         await _fixture.ResetAsync();
-        var inboundId = await SeedInboundAsync();
+        var inboundId = await _fixture.SeedInboundAsync();
 
         await using var scope = _fixture.Services.CreateAsyncScope();
         var outboundRepo = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
@@ -58,7 +58,7 @@ public class FanOutDedupTests
     public async Task InsertOutboundIfNotExists_SameInboundDifferentConsumers_ProducesTwoRows()
     {
         await _fixture.ResetAsync();
-        var inboundId = await SeedInboundAsync();
+        var inboundId = await _fixture.SeedInboundAsync();
 
         await using var scope = _fixture.Services.CreateAsyncScope();
         var outboundRepo = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
@@ -74,7 +74,7 @@ public class FanOutDedupTests
     public async Task InsertOutboundIfNotExists_ParallelInsertsForSameInboundConsumer_OneWinsOneLoses()
     {
         await _fixture.ResetAsync();
-        var inboundId = await SeedInboundAsync();
+        var inboundId = await _fixture.SeedInboundAsync();
 
         // Race two scoped repositories with their own DbContext + connection.
         async Task<bool> RaceOne()
@@ -91,24 +91,6 @@ public class FanOutDedupTests
 
         await using var verify = _fixture.CreateMirageQueueDbContext();
         Assert.Equal(1, await verify.Set<OutboundMessage>().CountAsync());
-    }
-
-    private async Task<Guid> SeedInboundAsync()
-    {
-        // Insert an inbound row directly so the FK on outbound is satisfied.
-        var id = Guid.NewGuid();
-        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
-        await conn.OpenAsync();
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            INSERT INTO mirage_queue."InboundMessage"
-                ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt")
-            VALUES
-                (@id, 1, '{}'::jsonb, 'X', now(), now())
-            """;
-        cmd.Parameters.Add(new NpgsqlParameter("id", id));
-        await cmd.ExecuteNonQueryAsync();
-        return id;
     }
 
     private static OutboundMessage BuildOutbound(Guid inboundId, string consumerEndpoint) => new()

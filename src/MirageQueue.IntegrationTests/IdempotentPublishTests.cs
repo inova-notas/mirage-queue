@@ -237,4 +237,62 @@ public class IdempotentPublishTests
         await using var verify = _fixture.CreateMirageQueueDbContext();
         Assert.Equal(0, await verify.Set<InboundMessage>().CountAsync());
     }
+
+    [Fact]
+    public async Task Publish_MaxLengthIdempotencyKey_Persists()
+    {
+        // The IdempotencyKey column is varchar(200). 200 chars is the boundary and must succeed.
+        await _fixture.ResetAsync();
+
+        await using var scope = _fixture.Services.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+
+        var key = new string('k', 200);
+        var result = await publisher.Publish(new TestMessage { Id = Guid.NewGuid() }, key);
+
+        Assert.False(result.IsDuplicate);
+
+        await using var verify = _fixture.CreateMirageQueueDbContext();
+        var row = await verify.Set<InboundMessage>().AsNoTracking().SingleAsync();
+        Assert.Equal(key, row.IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task Publish_OverMaxLengthIdempotencyKey_DatabaseRejects()
+    {
+        // 201 chars exceeds the varchar(200) constraint — Postgres will raise an error.
+        await _fixture.ResetAsync();
+
+        await using var scope = _fixture.Services.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+
+        var key = new string('k', 201);
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            publisher.Publish(new TestMessage { Id = Guid.NewGuid() }, key));
+
+        await using var verify = _fixture.CreateMirageQueueDbContext();
+        Assert.Equal(0, await verify.Set<InboundMessage>().CountAsync());
+    }
+
+    [Fact]
+    public async Task PublishAndSchedule_WithSameKey_AreIndependent()
+    {
+        // The partial unique indexes are per-table — Publish "key-X" and Schedule "key-X"
+        // are NOT considered duplicates of each other.
+        await _fixture.ResetAsync();
+
+        await using var scope = _fixture.Services.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+
+        var publishResult = await publisher.Publish(new TestMessage { Id = Guid.NewGuid() }, "shared-namespace-key");
+        var scheduleResult = await publisher.Schedule(new TestMessage { Id = Guid.NewGuid() }, DateTime.UtcNow.AddMinutes(5), "shared-namespace-key");
+
+        Assert.False(publishResult.IsDuplicate);
+        Assert.False(scheduleResult.IsDuplicate);
+
+        await using var verify = _fixture.CreateMirageQueueDbContext();
+        Assert.Equal(1, await verify.Set<InboundMessage>().CountAsync());
+        Assert.Equal(1, await verify.Set<ScheduledInboundMessage>().CountAsync());
+    }
 }
