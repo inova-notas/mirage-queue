@@ -3,6 +3,8 @@
 Mirage Queue is a library designed to provide the benefits of a message broker without introducing additional 
 infrastructure dependencies. Instead, it leverages a database to function as a message broker.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/inova-notas/mirage-queue)
+
 > **Note**: Currently, this library only supports **PostgreSQL** databases. 
 
 ## Installation
