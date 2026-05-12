@@ -556,33 +556,34 @@ public class PaymentReceivedConsumer(
 
 ### 3. In-project domain orchestrator
 
-When you have a real state machine — 5+ states, branching events, contingency modes, compensation — but only one business entity drives the lifecycle (one NF-e, one payment, one order), don't reach for a framework. Put the state machine in your own domain code as a single class. Each MirageQueue consumer becomes a thin wrapper around it:
+When you have a real state machine — 5+ states, branching events, retry loops, compensation — but only one business entity drives the lifecycle (one order, one shipment, one subscription), don't reach for a framework. Put the state machine in your own domain code as a single class. Each MirageQueue consumer becomes a thin wrapper around it:
 
 ```csharp
 // One class, one switch expression — the whole state machine in one place.
-public class NfeOrchestrator
+public class OrderOrchestrator
 {
-    public NfeDecision Decide(Nfe nfe, NfeEvent @event) =>
-        (nfe.Status, @event) switch
+    public OrderDecision Decide(Order order, OrderEvent @event) =>
+        (order.Status, @event) switch
         {
-            (NfeStatus.Pending,      TransmitRequested)   => NfeDecision.Transition(NfeStatus.Transmitting, publish: new TransmitToSefaz(nfe.Id)),
-            (NfeStatus.Transmitting, SefazAccepted r)     => NfeDecision.Transition(NfeStatus.Authorized,   data: r.AuthorizationKey),
-            (NfeStatus.Transmitting, SefazRejected r)     => NfeDecision.Transition(NfeStatus.Rejected,     data: r.Reason),
-            (NfeStatus.Transmitting, SefazTimeout)        => NfeDecision.Transition(NfeStatus.Contingency,  schedule: (new TransmitToSefaz(nfe.Id), TimeSpan.FromMinutes(5))),
-            (NfeStatus.Authorized,   CancellationAsked r) => NfeDecision.Transition(NfeStatus.Cancelling,   publish: new TransmitCancellation(nfe.Id, r.Reason)),
-            _ => NfeDecision.Ignore($"no transition for ({nfe.Status}, {@event.GetType().Name})")
+            (OrderStatus.Pending,  ChargeRequested)     => OrderDecision.Transition(OrderStatus.Charging,      publish: new ChargePayment(order.Id, order.TotalAmount)),
+            (OrderStatus.Charging, PaymentAccepted p)   => OrderDecision.Transition(OrderStatus.Paid,          data: p.TransactionId),
+            (OrderStatus.Charging, PaymentDeclined p)   => OrderDecision.Transition(OrderStatus.PaymentFailed, data: p.Reason),
+            (OrderStatus.Charging, PaymentTimeout)      => OrderDecision.Transition(OrderStatus.Retrying,      schedule: (new ChargePayment(order.Id, order.TotalAmount), TimeSpan.FromMinutes(5))),
+            (OrderStatus.Paid,     ShipmentRequested)   => OrderDecision.Transition(OrderStatus.Shipping,      publish: new CreateShipment(order.Id, order.ShippingAddress)),
+            (OrderStatus.Paid,     RefundRequested r)   => OrderDecision.Transition(OrderStatus.Refunding,     publish: new IssueRefund(order.Id, r.Reason)),
+            _ => OrderDecision.Ignore($"no transition for ({order.Status}, {@event.GetType().Name})")
         };
 }
 
 // Each consumer is a 5-liner that delegates to the orchestrator.
-public class SefazResponseConsumer(NfeOrchestrator orchestrator, NfeRepository repo, IPublisher publisher)
-    : IConsumer<SefazResponse>
+public class PaymentResponseConsumer(OrderOrchestrator orchestrator, OrderRepository repo, IPublisher publisher)
+    : IConsumer<PaymentResponse>
 {
-    public async Task Process(SefazResponse msg)
+    public async Task Process(PaymentResponse msg)
     {
-        var nfe = await repo.LoadForUpdate(msg.NfeId); // SELECT ... FOR UPDATE
-        var decision = orchestrator.Decide(nfe, NfeEvent.From(msg));
-        await decision.ApplyAsync(nfe, repo, publisher);
+        var order = await repo.LoadForUpdate(msg.OrderId); // SELECT ... FOR UPDATE
+        var decision = orchestrator.Decide(order, OrderEvent.From(msg));
+        await decision.ApplyAsync(order, repo, publisher);
     }
 }
 ```
