@@ -35,4 +35,27 @@ public class MirageQueueConfiguration
     /// Milliseconds between stuck-Processing reaper sweeps. Defaults to 60 seconds.
     /// </summary>
     public int StuckProcessingPollingTime { get; set; } = 60000;
+
+    /// <summary>
+    /// Enables the periodic cleanup of old terminal message rows. Opt-in (default <c>false</c>)
+    /// so an upgrade never silently deletes historical data.
+    /// </summary>
+    public bool CleanupEnabled { get; set; } = false;
+
+    /// <summary>
+    /// Age threshold (in days) for cleanup. Terminal rows older than this many days are
+    /// eligible for deletion. Defaults to 90.
+    /// </summary>
+    public int MessageRetentionDays { get; set; } = 90;
+
+    /// <summary>
+    /// Milliseconds between cleanup sweeps. Defaults to once per day (86,400,000 ms).
+    /// </summary>
+    public int CleanupPollingTime { get; set; } = 86_400_000;
+
+    /// <summary>
+    /// Maximum number of rows deleted per table per sweep. Bounds lock duration on large
+    /// backlogs. Defaults to 1000.
+    /// </summary>
+    public int CleanupBatchSize { get; set; } = 1000;
 }

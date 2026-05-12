@@ -22,6 +22,10 @@ public static class MirageQueueExtensions
         OutboundChannelCapacity = 500,
         ProcessingLeaseDuration = TimeSpan.FromMinutes(5),
         StuckProcessingPollingTime = 60000,
+        CleanupEnabled = false,
+        MessageRetentionDays = 90,
+        CleanupPollingTime = 86_400_000,
+        CleanupBatchSize = 1000,
     };
     
     public static void AddMirageQueue(this IServiceCollection services)

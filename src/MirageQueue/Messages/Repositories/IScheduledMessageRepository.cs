@@ -13,4 +13,11 @@ public interface IScheduledMessageRepository : IRepository<ScheduledInboundMessa
     public Task InsertDirect(ScheduledInboundMessage message, DbTransaction transaction, CancellationToken cancellationToken = default);
     public Task<PublishResult> InsertIfNotExists(ScheduledInboundMessage message, CancellationToken cancellationToken = default);
     public Task<PublishResult> InsertDirectIfNotExists(ScheduledInboundMessage message, DbTransaction transaction, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulk-delete scheduled rows whose effective timestamp is older than <paramref name="cutoff"/>
+    /// AND whose status is <see cref="ScheduledInboundMessageStatus.Queued"/> (post-conversion
+    /// terminal). Returns rows actually deleted.
+    /// </summary>
+    public Task<int> DeleteQueuedOlderThan(DateTime cutoff, int batchSize, IDbContextTransaction? transaction = null);
 }

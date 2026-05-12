@@ -155,4 +155,26 @@ public class ScheduledMessageRepository : BaseRepository<MirageQueueDbContext, S
 
         return new PublishResult(existingId, IsDuplicate: true);
     }
+
+    public async Task<int> DeleteQueuedOlderThan(DateTime cutoff, int batchSize, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var queuedParam = new NpgsqlParameter("queuedParam", (int)ScheduledInboundMessageStatus.Queued);
+        var cutoffParam = new NpgsqlParameter("cutoffParam", cutoff);
+        var batchParam = new NpgsqlParameter("batchParam", batchSize);
+
+        return await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            DELETE FROM mirage_queue."ScheduledInboundMessage"
+            WHERE "Id" IN (
+                SELECT "Id" FROM mirage_queue."ScheduledInboundMessage"
+                WHERE "Status" = {queuedParam}
+                  AND COALESCE("UpdateAt", "CreateAt") < {cutoffParam}
+                FOR UPDATE SKIP LOCKED
+                LIMIT {batchParam}
+            )
+            """);
+    }
 }

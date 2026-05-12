@@ -152,4 +152,36 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
 
         return new PublishResult(existingId, IsDuplicate: true);
     }
+
+    public async Task<int> DeleteQueuedOlderThanWithNoActiveOutbound(DateTime cutoff, int batchSize, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var queuedParam = new NpgsqlParameter("queuedParam", (int)InboundMessageStatus.Queued);
+        var processedParam = new NpgsqlParameter("processedParam", (int)OutboundMessageStatus.Processed);
+        var deadLetteredParam = new NpgsqlParameter("deadLetteredParam", (int)OutboundMessageStatus.DeadLettered);
+        var cutoffParam = new NpgsqlParameter("cutoffParam", cutoff);
+        var batchParam = new NpgsqlParameter("batchParam", batchSize);
+
+        // The NOT EXISTS clause prevents the FK cascade from destroying outbound rows that
+        // are still in non-terminal states (New / Processing / Failed). We only delete the
+        // inbound parent if every remaining child is itself a terminal-cleanable status.
+        return await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            DELETE FROM mirage_queue."InboundMessage"
+            WHERE "Id" IN (
+                SELECT i."Id" FROM mirage_queue."InboundMessage" i
+                WHERE i."Status" = {queuedParam}
+                  AND COALESCE(i."UpdateAt", i."CreateAt") < {cutoffParam}
+                  AND NOT EXISTS (
+                      SELECT 1 FROM mirage_queue."OutboundMessage" o
+                      WHERE o."InboundMessageId" = i."Id"
+                        AND o."Status" NOT IN ({processedParam}, {deadLetteredParam})
+                  )
+                FOR UPDATE SKIP LOCKED
+                LIMIT {batchParam}
+            )
+            """);
+    }
 }

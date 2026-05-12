@@ -22,5 +22,8 @@ public class InboundMessageConfiguration : IEntityTypeConfiguration<InboundMessa
         builder.HasIndex(x => x.IdempotencyKey)
             .IsUnique()
             .HasFilter("\"IdempotencyKey\" IS NOT NULL");
+
+        // Supports the retention cleanup predicate.
+        builder.HasIndex(x => new { x.Status, x.UpdateAt });
     }
 }

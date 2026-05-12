@@ -13,4 +13,12 @@ public interface IInboundMessageRepository : IRepository<InboundMessage>
     public Task InsertDirect(InboundMessage message, DbTransaction transaction, CancellationToken cancellationToken = default);
     public Task<PublishResult> InsertIfNotExists(InboundMessage message, CancellationToken cancellationToken = default);
     public Task<PublishResult> InsertDirectIfNotExists(InboundMessage message, DbTransaction transaction, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulk-delete inbound rows whose effective timestamp is older than <paramref name="cutoff"/>
+    /// AND whose status is <see cref="InboundMessageStatus.Queued"/> (post-fan-out terminal) AND
+    /// have NO outbound child in a non-terminal state. This last predicate guards against the
+    /// FK cascade silently destroying active queue work. Returns rows actually deleted.
+    /// </summary>
+    public Task<int> DeleteQueuedOlderThanWithNoActiveOutbound(DateTime cutoff, int batchSize, IDbContextTransaction? transaction = null);
 }

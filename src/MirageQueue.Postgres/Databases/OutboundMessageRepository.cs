@@ -209,4 +209,27 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
 
         return rowsAffected > 0;
     }
+
+    public async Task<int> DeleteTerminalOlderThan(DateTime cutoff, int batchSize, IDbContextTransaction? transaction = null)
+    {
+        if (transaction is not null)
+            await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
+
+        var processedParam = new NpgsqlParameter("processedParam", (int)OutboundMessageStatus.Processed);
+        var deadLetteredParam = new NpgsqlParameter("deadLetteredParam", (int)OutboundMessageStatus.DeadLettered);
+        var cutoffParam = new NpgsqlParameter("cutoffParam", cutoff);
+        var batchParam = new NpgsqlParameter("batchParam", batchSize);
+
+        return await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            DELETE FROM mirage_queue."OutboundMessage"
+            WHERE "Id" IN (
+                SELECT "Id" FROM mirage_queue."OutboundMessage"
+                WHERE "Status" IN ({processedParam}, {deadLetteredParam})
+                  AND COALESCE("UpdateAt", "CreateAt") < {cutoffParam}
+                FOR UPDATE SKIP LOCKED
+                LIMIT {batchParam}
+            )
+            """);
+    }
 }

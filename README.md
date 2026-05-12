@@ -372,6 +372,44 @@ builder.Services.AddMirageQueue(options =>
 
 > **Important**: the lease must be longer than the longest legitimate consumer execution. Otherwise the reaper will reclaim still-running messages and you'll get duplicates. When in doubt, err on the longer side.
 
+## Retention Cleanup
+
+Message tables grow monotonically — every published message produces an inbound row plus N outbound rows (one per consumer endpoint), and Phase 3 added the `DeadLettered` terminal status. Over time the tables become dominated by old terminal rows that have no operational value beyond audit. MirageQueue ships a background cleanup worker that deletes them on a configurable retention schedule.
+
+**Cleanup is opt-in.** Many operators rely on terminal rows for forensic / audit reads, so an upgrade never silently starts deleting historical data. Set `CleanupEnabled = true` to turn it on:
+
+```csharp
+builder.Services.AddMirageQueue(options =>
+{
+    options.CleanupEnabled = true;                  // default false
+    options.MessageRetentionDays = 90;              // default 90
+    options.CleanupPollingTime = 86_400_000;        // default 24h between sweeps
+    options.CleanupBatchSize = 1000;                // default; bounds per-sweep lock duration
+});
+```
+
+When enabled, the `PgMessageCleanupWorker` wakes up periodically and deletes:
+
+| Table | Eligible rows |
+|---|---|
+| `OutboundMessage` | `Status = Processed` or `Status = DeadLettered`, with `COALESCE(UpdateAt, CreateAt)` older than the cutoff |
+| `InboundMessage` | `Status = Queued` (post-fan-out terminal), older than the cutoff, **and no outbound child in a non-terminal state** |
+| `ScheduledInboundMessage` | `Status = Queued` (converted to inbound, terminal here), older than the cutoff |
+
+Each sweep deletes at most `CleanupBatchSize` rows per table — set lower if your DB locks need to stay tight, higher if your backlog is large and you want to drain faster.
+
+### Why `Failed` is not cleaned
+
+`OutboundMessageStatus.Failed` is the legacy terminal state from before Phase 3 (consumer registered without an explicit retry policy → fails → `Failed`). Cleaning it would silently remove error-diagnostic context for the operators most likely to be running without policies. Either attach a retry policy (so terminals become `DeadLettered`, which **is** cleaned) or run a manual `DELETE` if you want them gone.
+
+### Safety: the FK cascade guard
+
+`OutboundMessage` has `ON DELETE CASCADE` to `InboundMessage`. Deleting an inbound row drops **all** its outbound children. The cleanup query therefore only deletes an inbound row if every outbound child is itself in `Processed` or `DeadLettered` — meaning the cascade is just finishing a sweep that would have happened anyway. Inbound rows with any `New`, `Processing`, or `Failed` child stay put even if they're past the retention cutoff.
+
+### Multi-replica safety
+
+Each delete uses `FOR UPDATE SKIP LOCKED` on the inner row-pick query, so multiple replicas running the cleanup worker won't block each other — each will claim a different slice of eligible rows per sweep.
+
 ## Dashboard Integration
 
 The MirageQueue Dashboard provides a comprehensive web interface for monitoring and managing your message queues.

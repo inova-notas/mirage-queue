@@ -43,5 +43,8 @@ public class OutboundMessageConfiguration : IEntityTypeConfiguration<OutboundMes
         builder.HasIndex(x => new { x.Status, x.NextRetryAt });
 
         builder.HasIndex(x => new { x.Status, x.ProcessingStartedAt });
+
+        // Supports the retention cleanup predicate.
+        builder.HasIndex(x => new { x.Status, x.UpdateAt });
     }
 }

@@ -21,5 +21,8 @@ public class ScheduledMessageConfiguration : IEntityTypeConfiguration<ScheduledI
         builder.HasIndex(x => x.IdempotencyKey)
             .IsUnique()
             .HasFilter("\"IdempotencyKey\" IS NOT NULL");
+
+        // Supports the retention cleanup predicate.
+        builder.HasIndex(x => new { x.Status, x.UpdateAt });
     }
 }

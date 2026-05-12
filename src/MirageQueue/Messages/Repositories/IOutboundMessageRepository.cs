@@ -44,4 +44,12 @@ public interface IOutboundMessageRepository : IRepository<OutboundMessage>
     /// Returns true if a new row was inserted; false if a duplicate already existed.
     /// </summary>
     public Task<bool> InsertIfNotExists(OutboundMessage message, IDbContextTransaction? transaction = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulk-delete outbound rows in terminal status (<see cref="OutboundMessageStatus.Processed"/> or
+    /// <see cref="OutboundMessageStatus.DeadLettered"/>) whose effective timestamp
+    /// (<c>COALESCE(UpdateAt, CreateAt)</c>) is older than <paramref name="cutoff"/>. Bounded by
+    /// <paramref name="batchSize"/>. Returns the number of rows actually deleted.
+    /// </summary>
+    public Task<int> DeleteTerminalOlderThan(DateTime cutoff, int batchSize, IDbContextTransaction? transaction = null);
 }
