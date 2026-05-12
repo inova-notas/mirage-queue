@@ -484,6 +484,128 @@ All messaging metrics are tagged with `messaging.system="mirage_queue"`, `messag
 
 Three message tables (`InboundMessage`, `ScheduledInboundMessage`, `OutboundMessage`) gain two nullable columns: `TraceParent varchar(55)` and `TraceState varchar(256)`. Pre-Phase-4 rows have NULL values; consumers see them as "no incoming context" and start a fresh root span. The migration is additive and rolling-upgrade safe — older app instances simply ignore the columns.
 
+## Patterns: choosing the right tool for the job
+
+MirageQueue is a queue + outbox primitive. Most "I want a saga" needs are better served by simpler patterns that compose its existing primitives. Reach for the lightest tool that solves your problem.
+
+### 1. Simple state guards
+
+When all you need is "don't run this consumer if the business entity is already past state X," a `Status` column on your domain entity is enough. Early-return at the top of each consumer:
+
+```csharp
+public class Order
+{
+    public Guid Id { get; set; }
+    public OrderStatus Status { get; set; } // Pending, Paid, Shipped, Cancelled
+}
+
+public class ShipOrderConsumer(OrderDbContext db) : IConsumer<ShipOrder>
+{
+    public async Task Process(ShipOrder msg)
+    {
+        var order = await db.Orders.FindAsync(msg.OrderId);
+        if (order is null || order.Status != OrderStatus.Paid)
+            return; // idempotent: already shipped, cancelled, or unknown
+
+        order.Status = OrderStatus.Shipped;
+        await db.SaveChangesAsync();
+    }
+}
+```
+
+**Use when**: single linear lifecycle, ≤3 states, no branching events.
+
+### 2. Audit trail of business events
+
+When you need to reconstruct "what happened to entity 42," append rows to a domain events table from inside each consumer. Use `IDbContextOutbox` so the event row, the business write, and any follow-up publish all commit atomically:
+
+```csharp
+public class OrderEvent
+{
+    public Guid Id { get; set; }
+    public Guid OrderId { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public string PayloadJson { get; set; } = string.Empty;
+    public DateTime OccurredAt { get; set; }
+}
+
+public class PaymentReceivedConsumer(
+    OrderDbContext db,
+    IDbContextOutbox<OrderDbContext> outbox) : IConsumer<PaymentReceived>
+{
+    public async Task Process(PaymentReceived msg)
+    {
+        var order = await db.Orders.FindAsync(msg.OrderId);
+        if (order is null || order.Status != OrderStatus.Pending) return;
+
+        order.Status = OrderStatus.Paid;
+        db.Add(new OrderEvent
+        {
+            Id = Guid.NewGuid(), OrderId = order.Id,
+            EventType = "PaymentReceived", PayloadJson = JsonSerializer.Serialize(msg),
+            OccurredAt = DateTime.UtcNow,
+        });
+        outbox.Publish(new ShipOrder { OrderId = order.Id });
+
+        await outbox.SaveChangesAndFlushMessagesAsync();
+    }
+}
+```
+
+**Use when**: forensics or analytics matter more than orchestration logic, and you want a permanent record of every transition.
+
+### 3. In-project domain orchestrator
+
+When you have a real state machine — 5+ states, branching events, contingency modes, compensation — but only one business entity drives the lifecycle (one NF-e, one payment, one order), don't reach for a framework. Put the state machine in your own domain code as a single class. Each MirageQueue consumer becomes a thin wrapper around it:
+
+```csharp
+// One class, one switch expression — the whole state machine in one place.
+public class NfeOrchestrator
+{
+    public NfeDecision Decide(Nfe nfe, NfeEvent @event) =>
+        (nfe.Status, @event) switch
+        {
+            (NfeStatus.Pending,      TransmitRequested)   => NfeDecision.Transition(NfeStatus.Transmitting, publish: new TransmitToSefaz(nfe.Id)),
+            (NfeStatus.Transmitting, SefazAccepted r)     => NfeDecision.Transition(NfeStatus.Authorized,   data: r.AuthorizationKey),
+            (NfeStatus.Transmitting, SefazRejected r)     => NfeDecision.Transition(NfeStatus.Rejected,     data: r.Reason),
+            (NfeStatus.Transmitting, SefazTimeout)        => NfeDecision.Transition(NfeStatus.Contingency,  schedule: (new TransmitToSefaz(nfe.Id), TimeSpan.FromMinutes(5))),
+            (NfeStatus.Authorized,   CancellationAsked r) => NfeDecision.Transition(NfeStatus.Cancelling,   publish: new TransmitCancellation(nfe.Id, r.Reason)),
+            _ => NfeDecision.Ignore($"no transition for ({nfe.Status}, {@event.GetType().Name})")
+        };
+}
+
+// Each consumer is a 5-liner that delegates to the orchestrator.
+public class SefazResponseConsumer(NfeOrchestrator orchestrator, NfeRepository repo, IPublisher publisher)
+    : IConsumer<SefazResponse>
+{
+    public async Task Process(SefazResponse msg)
+    {
+        var nfe = await repo.LoadForUpdate(msg.NfeId); // SELECT ... FOR UPDATE
+        var decision = orchestrator.Decide(nfe, NfeEvent.From(msg));
+        await decision.ApplyAsync(nfe, repo, publisher);
+    }
+}
+```
+
+**Use when**: complex linear-ish lifecycle, single business-entity owner, you want the state machine to live as readable code in your domain — debuggable, versionable, no DSL. This is the tier most "saga-shaped" needs land at.
+
+**Why this beats a framework here**: the state machine *is* your business logic. Putting it behind a framework DSL hides the very code you most need to read and reason about. A switch expression in your domain project is faster to write, faster to debug, easier to unit-test (pure function: `Decide(state, event)`), and trivially migratable to a real saga library later if your needs grow beyond a single entity.
+
+### 4. Multi-entity sagas with parallel branches
+
+Reach for a real saga library when:
+
+- Multiple concurrent saga instances coordinate one business operation (e.g. fan-out across providers, parallel approval workflows)
+- Compensation chains span 4+ steps with explicit rollback semantics
+- You actually want a state-machine DSL with visualizers, history UI, and tooling
+
+Options:
+
+- **[MassTransit Sagas](https://masstransit.io/documentation/patterns/saga)** — mature, Postgres persistence via EF Core, state-machine DSL, well-documented. Runs alongside MirageQueue without conflict.
+- **[NServiceBus Sagas](https://docs.particular.net/nservicebus/sagas/)** — similar territory, commercial licensing.
+
+MirageQueue intentionally doesn't ship a saga abstraction — those libraries already solve the problem comprehensively, and a thin in-house version would duplicate the work without matching their maturity.
+
 ## Dashboard Integration
 
 The MirageQueue Dashboard provides a comprehensive web interface for monitoring and managing your message queues.

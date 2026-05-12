@@ -19,12 +19,12 @@
     </ItemGroup>
 
     <ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
-        <PackageReference Include="InovaNotas.MirageQueue" Version="2.4.3" />
+        <PackageReference Include="InovaNotas.MirageQueue" Version="2.5.0" />
     </ItemGroup>
 
     <ItemGroup>
         
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>

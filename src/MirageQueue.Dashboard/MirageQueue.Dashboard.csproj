@@ -20,7 +20,7 @@
     </ItemGroup>
     
     <ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
-        <PackageReference Include="InovaNotas.MirageQueue" Version="2.4.3" />
+        <PackageReference Include="InovaNotas.MirageQueue" Version="2.5.0" />
     </ItemGroup>
 
     <ItemGroup>
