@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="2.5.0"></a>
+## [2.5.0](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.5.0) (2026-05-12)
+
+### Features
+
+* feat: phase 3.5 — opt-in retention cleanup for terminal message rows ([af0cbd4](https://www.github.com/inova-notas/mirage-queue/commit/af0cbd4c77f7ce17c2b64009fa8647bca18f7059))
+* idempotent inbox and fan-out dedup ([6f028c1](https://www.github.com/inova-notas/mirage-queue/commit/6f028c16689436450ae35926242d84f3c1f26f12))
+* make AddConsumer<T> work and stop swallowing batch errors ([77841bc](https://www.github.com/inova-notas/mirage-queue/commit/77841bc9dd9619cbc56c0bced6fdedf8cb0ae0aa))
+* OpenTelemetry instrumentation with W3C trace context propagation ([6dc145f](https://www.github.com/inova-notas/mirage-queue/commit/6dc145fed445c7c5ddf6fd7bf5e596a7f8dc7931))
+* retry policies, dead letter queue, and stuck-Processing recovery ([c74ade0](https://www.github.com/inova-notas/mirage-queue/commit/c74ade08fa1b3e3f4bb3c775e84e555eeeef1cea))
+* transactional outbox via DbTransaction and IDbContextOutbox ([d391188](https://www.github.com/inova-notas/mirage-queue/commit/d3911887efd385d7260680e7e7de1d04480be0a5))
+* transactional outbox via DbTransaction and IDbContextOutbox ([7113ad1](https://www.github.com/inova-notas/mirage-queue/commit/7113ad143fc9ec867bb8e4771a796ddd5789ebf6))
+
 <a name="2.4.3"></a>
 ## [2.4.3](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.4.3) (2026-04-08)
 
