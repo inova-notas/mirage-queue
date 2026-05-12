@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using MirageQueue.Common;
 using MirageQueue.Messages.Entities;
@@ -12,9 +13,29 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
     readonly MirageQueueDbContext _dbContext;
     readonly NpgsqlParameter _statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.New);
 
+    private static readonly JsonSerializerOptions ErrorHistoryJsonOptions = JsonSerializerOptions.Web;
+
     public OutboundMessageRepository(MirageQueueDbContext dbContext) : base(dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    /// <summary>
+    /// Builds a single-element JSON array containing the new error entry, ready to be
+    /// concatenated onto the existing <c>ErrorHistory</c> via the jsonb <c>||</c> operator.
+    /// </summary>
+    private static string SerializeNewErrorEntry(int attempt, string? message, string? stackTrace, string? exceptionType, string source)
+    {
+        var entry = new OutboundMessageError
+        {
+            Attempt = attempt,
+            OccurredAt = DateTime.UtcNow,
+            Message = message,
+            ExceptionType = exceptionType,
+            StackTrace = stackTrace,
+            Source = source,
+        };
+        return JsonSerializer.Serialize(new[] { entry }, ErrorHistoryJsonOptions);
     }
 
     public async Task<List<OutboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = null, int limit = 10)
@@ -54,7 +75,7 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
             """);
     }
 
-    public async Task MarkForRetry(Guid id, int attemptCount, DateTime nextRetryAt, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = null)
+    public async Task MarkForRetry(Guid id, int attemptCount, DateTime nextRetryAt, string? errorMessage, string? stackTrace, string? exceptionType, string source = "Dispatch", IDbContextTransaction? transaction = null)
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
@@ -67,6 +88,7 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         var errorMessageParam = new NpgsqlParameter("errorMessageParam", (object?)errorMessage ?? DBNull.Value);
         var stackTraceParam = new NpgsqlParameter("stackTraceParam", (object?)stackTrace ?? DBNull.Value);
         var exceptionTypeParam = new NpgsqlParameter("exceptionTypeParam", (object?)exceptionType ?? DBNull.Value);
+        var errorEntryParam = new NpgsqlParameter("errorEntryParam", SerializeNewErrorEntry(attemptCount, errorMessage, stackTrace, exceptionType, source));
 
         await _dbContext.Database.ExecuteSqlAsync(
             $"""
@@ -78,12 +100,13 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
                 "ProcessingStartedAt" = NULL,
                 "ErrorMessage" = {errorMessageParam},
                 "StackTrace" = {stackTraceParam},
-                "ExceptionType" = {exceptionTypeParam}
+                "ExceptionType" = {exceptionTypeParam},
+                "ErrorHistory" = COALESCE("ErrorHistory", '[]'::jsonb) || {errorEntryParam}::jsonb
             WHERE "Id" = {idParam}
             """);
     }
 
-    public async Task MarkDeadLettered(Guid id, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = null)
+    public async Task MarkDeadLettered(Guid id, int attemptCount, string? errorMessage, string? stackTrace, string? exceptionType, string source = "Dispatch", IDbContextTransaction? transaction = null)
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
@@ -91,19 +114,23 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         var idParam = new NpgsqlParameter("idParam", id);
         var statusParam = new NpgsqlParameter("statusParam", (int)OutboundMessageStatus.DeadLettered);
         var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
+        var attemptParam = new NpgsqlParameter("attemptParam", attemptCount);
         var errorMessageParam = new NpgsqlParameter("errorMessageParam", (object?)errorMessage ?? DBNull.Value);
         var stackTraceParam = new NpgsqlParameter("stackTraceParam", (object?)stackTrace ?? DBNull.Value);
         var exceptionTypeParam = new NpgsqlParameter("exceptionTypeParam", (object?)exceptionType ?? DBNull.Value);
+        var errorEntryParam = new NpgsqlParameter("errorEntryParam", SerializeNewErrorEntry(attemptCount, errorMessage, stackTrace, exceptionType, source));
 
         await _dbContext.Database.ExecuteSqlAsync(
             $"""
             UPDATE mirage_queue."OutboundMessage"
             SET "Status" = {statusParam},
                 "UpdateAt" = {updatedParam},
+                "AttemptCount" = {attemptParam},
                 "ProcessingStartedAt" = NULL,
                 "ErrorMessage" = {errorMessageParam},
                 "StackTrace" = {stackTraceParam},
-                "ExceptionType" = {exceptionTypeParam}
+                "ExceptionType" = {exceptionTypeParam},
+                "ErrorHistory" = COALESCE("ErrorHistory", '[]'::jsonb) || {errorEntryParam}::jsonb
             WHERE "Id" = {idParam}
             """);
     }
@@ -166,7 +193,7 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"OutboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam} WHERE \"Id\" = {idParam}");
     }
 
-    public async Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = default)
+    public async Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, int attemptCount, string? errorMessage, string? stackTrace, string? exceptionType, string source = "Dispatch", IDbContextTransaction? transaction = default)
     {
         if (transaction is not null)
             await _dbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
@@ -174,11 +201,25 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         var idParam = new NpgsqlParameter("idParam", id);
         var statusUpdateParam = new NpgsqlParameter("statusUpdateParam", (int)status);
         var updatedParam = new NpgsqlParameter("updatedParam", DateTime.UtcNow);
+        var attemptParam = new NpgsqlParameter("attemptParam", attemptCount);
         var errorMessageParam = new NpgsqlParameter("errorMessageParam", (object?)errorMessage ?? DBNull.Value);
         var stackTraceParam = new NpgsqlParameter("stackTraceParam", (object?)stackTrace ?? DBNull.Value);
         var exceptionTypeParam = new NpgsqlParameter("exceptionTypeParam", (object?)exceptionType ?? DBNull.Value);
+        var errorEntryParam = new NpgsqlParameter("errorEntryParam", SerializeNewErrorEntry(attemptCount, errorMessage, stackTrace, exceptionType, source));
 
-        await _dbContext.Database.ExecuteSqlAsync($"UPDATE mirage_queue.\"OutboundMessage\" SET \"Status\" = {statusUpdateParam}, \"UpdateAt\" = {updatedParam}, \"ProcessingStartedAt\" = NULL, \"ErrorMessage\" = {errorMessageParam}, \"StackTrace\" = {stackTraceParam}, \"ExceptionType\" = {exceptionTypeParam} WHERE \"Id\" = {idParam}");
+        await _dbContext.Database.ExecuteSqlAsync(
+            $"""
+            UPDATE mirage_queue."OutboundMessage"
+            SET "Status" = {statusUpdateParam},
+                "UpdateAt" = {updatedParam},
+                "AttemptCount" = {attemptParam},
+                "ProcessingStartedAt" = NULL,
+                "ErrorMessage" = {errorMessageParam},
+                "StackTrace" = {stackTraceParam},
+                "ExceptionType" = {exceptionTypeParam},
+                "ErrorHistory" = COALESCE("ErrorHistory", '[]'::jsonb) || {errorEntryParam}::jsonb
+            WHERE "Id" = {idParam}
+            """);
     }
 
     public async Task<bool> InsertIfNotExists(OutboundMessage message, IDbContextTransaction? transaction = null, CancellationToken cancellationToken = default)
@@ -196,13 +237,15 @@ public class OutboundMessageRepository : BaseRepository<MirageQueueDbContext, Ou
         var contractParam = new NpgsqlParameter("contract", message.MessageContract);
         var createAtParam = new NpgsqlParameter("createAt", message.CreateAt);
         var updateAtParam = new NpgsqlParameter("updateAt", (object?)message.UpdateAt ?? DBNull.Value);
+        var traceParentParam = new NpgsqlParameter("traceParent", (object?)message.TraceParent ?? DBNull.Value);
+        var traceStateParam = new NpgsqlParameter("traceState", (object?)message.TraceState ?? DBNull.Value);
 
         var rowsAffected = await _dbContext.Database.ExecuteSqlAsync(
             $"""
             INSERT INTO mirage_queue."OutboundMessage"
-                ("Id", "Status", "ConsumerEndpoint", "InboundMessageId", "Content", "MessageContract", "CreateAt", "UpdateAt")
+                ("Id", "Status", "ConsumerEndpoint", "InboundMessageId", "Content", "MessageContract", "CreateAt", "UpdateAt", "TraceParent", "TraceState")
             VALUES
-                ({idParam}, {statusParam}, {consumerEndpointParam}, {inboundMessageIdParam}, {contentParam}::jsonb, {contractParam}, {createAtParam}, {updateAtParam})
+                ({idParam}, {statusParam}, {consumerEndpointParam}, {inboundMessageIdParam}, {contentParam}::jsonb, {contractParam}, {createAtParam}, {updateAtParam}, {traceParentParam}, {traceStateParam})
             ON CONFLICT ("InboundMessageId", "ConsumerEndpoint") DO NOTHING
             """,
             cancellationToken);

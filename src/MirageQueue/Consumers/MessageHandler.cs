@@ -105,6 +105,8 @@ public class MessageHandler(
                 Status = InboundMessageStatus.New,
                 CreateAt = DateTime.UtcNow,
                 UpdateAt = DateTime.UtcNow,
+                TraceParent = scheduledMessage.TraceParent,
+                TraceState = scheduledMessage.TraceState,
             };
 
             await scheduledMessageRepository.UpdateMessageStatus(scheduledMessage.Id, ScheduledInboundMessageStatus.Queued,
@@ -141,7 +143,9 @@ public class MessageHandler(
                 Content = inboundMessage.Content,
                 CreateAt = DateTime.UtcNow,
                 Status = OutboundMessageStatus.New,
-                InboundMessageId = inboundMessage.Id
+                InboundMessageId = inboundMessage.Id,
+                TraceParent = inboundMessage.TraceParent,
+                TraceState = inboundMessage.TraceState,
             };
 
             await outboundMessageRepository.InsertIfNotExists(outboundMessage, dbTransaction);

@@ -1,3 +1,4 @@
+@using MirageQueue.Messages.Entities
 @model MessageDetailViewModel
 
 @{
@@ -81,11 +82,12 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Status</label>
                     <div>
-                        <span class="status-badge badge fs-6 
-                            @(Model.Status.Contains("New") ? "bg-info" : 
-                              Model.Status.Contains("Processing") || Model.Status.Contains("Queued") ? "bg-warning" :
+                        <span class="status-badge badge fs-6
+                            @(Model.Status == "DeadLettered" ? "bg-dark" :
+                              Model.Status.Contains("Failed") ? "bg-danger" :
                               Model.Status.Contains("Processed") ? "bg-success" :
-                              Model.Status.Contains("Failed") ? "bg-danger" : "bg-secondary")">
+                              Model.Status.Contains("Processing") || Model.Status.Contains("Queued") ? "bg-warning" :
+                              Model.Status.Contains("New") ? "bg-info" : "bg-secondary")">
                             @Model.Status
                         </span>
                     </div>
@@ -131,6 +133,57 @@
                             @Model.ConsumerEndpoint
                         </div>
                     </div>
+                }
+
+                @if (Model.MessageType == "Outbound")
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Attempts</label>
+                        <div class="bg-body-secondary p-3 rounded">
+                            @{
+                                var detailAttemptBadge = Model.AttemptCount == 0 ? "bg-secondary"
+                                    : Model.Status == "DeadLettered" ? "bg-dark"
+                                    : Model.Status == "Failed" ? "bg-danger"
+                                    : "bg-warning";
+                            }
+                            <span class="badge @detailAttemptBadge fs-6">@Model.AttemptCount</span>
+                            @if (Model.Status == "DeadLettered")
+                            {
+                                <small class="text-muted ms-2">retry limit reached</small>
+                            }
+                        </div>
+                    </div>
+
+                    @if (Model.NextRetryAt.HasValue)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Next Retry At</label>
+                            <div class="bg-body-secondary p-3 rounded">
+                                @Model.NextRetryAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                                @{
+                                    var delta = Model.NextRetryAt.Value - DateTime.UtcNow;
+                                }
+                                @if (delta > TimeSpan.Zero)
+                                {
+                                    <small class="text-muted ms-2">(in @((int)delta.TotalSeconds)s)</small>
+                                }
+                                else
+                                {
+                                    <small class="text-muted ms-2">(due)</small>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.ProcessingStartedAt.HasValue)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Processing Started At</label>
+                            <div class="bg-body-secondary p-3 rounded">
+                                @Model.ProcessingStartedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                            </div>
+                        </div>
+                    }
                 }
 
                 @if (Model.ExecuteAt.HasValue)
@@ -194,6 +247,71 @@
                     </div>
                 </div>
             }
+        </div>
+    </div>
+}
+
+@* Error History (full per-attempt log, only for outbound rows that have one) *@
+@if (Model.MessageType == "Outbound" && Model.ErrorHistory.Count > 0)
+{
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+            <h5 class="card-title mb-4">
+                <i class="fas fa-history me-2"></i>Error History
+                <small class="text-muted ms-2">@Model.ErrorHistory.Count @(Model.ErrorHistory.Count == 1 ? "attempt" : "attempts")</small>
+            </h5>
+
+            <div class="accordion" id="errorHistoryAccordion">
+                @for (var i = 0; i < Model.ErrorHistory.Count; i++)
+                {
+                    var entry = Model.ErrorHistory[i];
+                    var collapseId = $"errorHistory-{i}";
+                    var sourceBadge = entry.Source == "Reaper" ? "bg-warning text-dark" : "bg-danger";
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                                <div class="d-flex flex-wrap align-items-center gap-2 w-100 pe-3">
+                                    <span class="badge bg-secondary">Attempt @entry.Attempt</span>
+                                    <span class="badge @sourceBadge">@entry.Source</span>
+                                    <span class="small text-muted">@entry.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</span>
+                                    <span class="ms-auto small text-truncate" style="max-width: 50%;">
+                                        @(string.IsNullOrEmpty(entry.Message) ? "(no message)" : entry.Message)
+                                    </span>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="@collapseId" class="accordion-collapse collapse" data-bs-parent="#errorHistoryAccordion">
+                            <div class="accordion-body">
+                                @if (!string.IsNullOrEmpty(entry.ExceptionType))
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Exception Type</label>
+                                        <div class="bg-body-secondary p-2 rounded font-monospace small">@entry.ExceptionType</div>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(entry.Message))
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Message</label>
+                                        <div class="bg-body-secondary p-2 rounded">@entry.Message</div>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(entry.StackTrace))
+                                {
+                                    <div class="mb-0">
+                                        <label class="form-label fw-semibold">Stack Trace</label>
+                                        <div class="bg-body-secondary p-3 rounded">
+                                            <pre class="small overflow-auto mb-0" style="white-space: pre-wrap;">@entry.StackTrace</pre>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
         </div>
     </div>
 }

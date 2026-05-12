@@ -39,6 +39,10 @@
                     {
                         <span class="badge bg-danger">@Model.FailedOutboundMessages Failed</span>
                     }
+                    @if (Model.DeadLetteredOutboundMessages > 0)
+                    {
+                        <span class="badge bg-dark">@Model.DeadLetteredOutboundMessages Dead-lettered</span>
+                    }
                 </div>
             </div>
         </div>

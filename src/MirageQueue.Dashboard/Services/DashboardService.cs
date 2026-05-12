@@ -41,6 +41,7 @@ public class DashboardService : IDashboardService
         var processingOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.Processing);
         var processedOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.Processed);
         var failedOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.Failed);
+        var deadLetteredOutboundMessages = await outboundMessages.CountAsync(m => m.Status == OutboundMessageStatus.DeadLettered);
 
         var totalScheduledMessages = await scheduledMessages.CountAsync();
         var waitingScheduledMessages = await scheduledMessages.CountAsync(m => m.Status == ScheduledInboundMessageStatus.WaitingScheduledTime);
@@ -58,6 +59,7 @@ public class DashboardService : IDashboardService
             ProcessingOutboundMessages = processingOutboundMessages,
             ProcessedOutboundMessages = processedOutboundMessages,
             FailedOutboundMessages = failedOutboundMessages,
+            DeadLetteredOutboundMessages = deadLetteredOutboundMessages,
 
             TotalScheduledMessages = totalScheduledMessages,
             WaitingScheduledMessages = waitingScheduledMessages,
@@ -141,7 +143,10 @@ public class DashboardService : IDashboardService
                 CreateAt = m.CreateAt,
                 UpdateAt = m.UpdateAt,
                 MessageType = "Outbound",
-                ConsumerEndpoint = m.ConsumerEndpoint
+                ConsumerEndpoint = m.ConsumerEndpoint,
+                AttemptCount = m.AttemptCount,
+                NextRetryAt = m.NextRetryAt,
+                ErrorMessage = m.ErrorMessage
             })
             .ToListAsync();
 
@@ -242,10 +247,16 @@ public class DashboardService : IDashboardService
             MessageType = "Outbound",
             ConsumerEndpoint = message.ConsumerEndpoint,
             InboundMessageId = message.InboundMessageId,
-            CanRequeue = message.Status == OutboundMessageStatus.Failed || message.Status == OutboundMessageStatus.Processed,
+            CanRequeue = message.Status is OutboundMessageStatus.Failed
+                          or OutboundMessageStatus.Processed
+                          or OutboundMessageStatus.DeadLettered,
             ErrorMessage = message.ErrorMessage,
             StackTrace = message.StackTrace,
-            ExceptionType = message.ExceptionType
+            ExceptionType = message.ExceptionType,
+            AttemptCount = message.AttemptCount,
+            NextRetryAt = message.NextRetryAt,
+            ProcessingStartedAt = message.ProcessingStartedAt,
+            ErrorHistory = message.ErrorHistory ?? (IReadOnlyList<OutboundMessageError>)Array.Empty<OutboundMessageError>()
         };
     }
 

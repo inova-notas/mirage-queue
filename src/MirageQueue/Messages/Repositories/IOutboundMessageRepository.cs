@@ -8,7 +8,7 @@ public interface IOutboundMessageRepository : IRepository<OutboundMessage>
 {
     public Task<List<OutboundMessage>> GetQueuedMessages(IDbContextTransaction? transaction = null, int limit = 10);
     public Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, IDbContextTransaction? transaction = null);
-    public Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = null);
+    public Task UpdateMessageStatus(Guid id, OutboundMessageStatus status, int attemptCount, string? errorMessage, string? stackTrace, string? exceptionType, string source = "Dispatch", IDbContextTransaction? transaction = null);
 
     /// <summary>
     /// Transition a picked-up row to <c>Processing</c> and stamp <c>ProcessingStartedAt = now()</c>
@@ -20,12 +20,12 @@ public interface IOutboundMessageRepository : IRepository<OutboundMessage>
     /// Reset the row to <c>Status = New</c> with an incremented <c>AttemptCount</c> and a future
     /// <c>NextRetryAt</c>. Used after a failed dispatch when the policy still has retries left.
     /// </summary>
-    public Task MarkForRetry(Guid id, int attemptCount, DateTime nextRetryAt, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = null);
+    public Task MarkForRetry(Guid id, int attemptCount, DateTime nextRetryAt, string? errorMessage, string? stackTrace, string? exceptionType, string source = "Dispatch", IDbContextTransaction? transaction = null);
 
     /// <summary>
     /// Terminal transition for rows whose policy attempts are exhausted.
     /// </summary>
-    public Task MarkDeadLettered(Guid id, string? errorMessage, string? stackTrace, string? exceptionType, IDbContextTransaction? transaction = null);
+    public Task MarkDeadLettered(Guid id, int attemptCount, string? errorMessage, string? stackTrace, string? exceptionType, string source = "Dispatch", IDbContextTransaction? transaction = null);
 
     /// <summary>
     /// Picks up rows that have been in <c>Processing</c> for longer than the lease duration.

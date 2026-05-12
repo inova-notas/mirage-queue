@@ -81,6 +81,7 @@ public abstract class OutboundMessageHandlerWorker(
                         await outboundRepository.UpdateMessageStatus(
                             message.Id,
                             OutboundMessageStatus.Failed,
+                            message.AttemptCount + 1,
                             e.Message,
                             e.ToString(),
                             e.GetType().FullName);

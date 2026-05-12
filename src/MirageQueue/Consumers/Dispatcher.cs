@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MirageQueue.Diagnostics;
 using MirageQueue.Messages.Entities;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Text.Json;
 
@@ -22,6 +24,26 @@ public class Dispatcher(IServiceProvider serviceProvider,
             return;
         }
 
+        var parentContext = TryParseTraceContext(outboundMessage.TraceParent, outboundMessage.TraceState);
+        using var activity = MirageQueueDiagnostics.ActivitySource.StartActivity(
+            $"{MirageQueueDiagnostics.OperationProcess} {outboundMessage.ConsumerEndpoint}",
+            ActivityKind.Consumer,
+            parentContext);
+        activity?.SetTag(MirageQueueDiagnostics.AttrMessagingSystem, MirageQueueDiagnostics.MessagingSystemValue);
+        activity?.SetTag(MirageQueueDiagnostics.AttrMessagingOperation, MirageQueueDiagnostics.OperationProcess);
+        activity?.SetTag(MirageQueueDiagnostics.AttrMessagingDestination, outboundMessage.ConsumerEndpoint);
+        activity?.SetTag(MirageQueueDiagnostics.AttrMessagingMessageId, outboundMessage.InboundMessageId);
+        activity?.SetTag(MirageQueueDiagnostics.AttrMessagingConsumerEndpoint, outboundMessage.ConsumerEndpoint);
+
+        var startTs = Stopwatch.GetTimestamp();
+        var tags = new TagList
+        {
+            { MirageQueueDiagnostics.AttrMessagingSystem, MirageQueueDiagnostics.MessagingSystemValue },
+            { MirageQueueDiagnostics.AttrMessagingOperation, MirageQueueDiagnostics.OperationProcess },
+            { MirageQueueDiagnostics.AttrMessagingDestination, outboundMessage.ConsumerEndpoint }
+        };
+        MirageQueueDiagnostics.QueueWaitDuration.Record((DateTime.UtcNow - outboundMessage.CreateAt).TotalSeconds, tags);
+
         await using var scope = serviceProvider.CreateAsyncScope();
         var consumerInstance = scope.ServiceProvider.GetRequiredService(consumer.ConsumerType);
         var message = GetMessage(outboundMessage, consumer.MessageType);
@@ -33,14 +55,38 @@ public class Dispatcher(IServiceProvider serviceProvider,
             try
             {
                 await processDelegate(consumerInstance, message);
+                MirageQueueDiagnostics.ConsumedCounter.Add(1, tags);
+                MirageQueueDiagnostics.ProcessDuration.Record(Stopwatch.GetElapsedTime(startTs).TotalSeconds, tags);
                 return;
             }
             catch (Exception ex) when (attempt < policy.TransientAttempts && policy.IsTransient(ex))
             {
+                activity?.AddEvent(new ActivityEvent("retry_attempt",
+                    tags: new ActivityTagsCollection
+                    {
+                        { "exception.type", ex.GetType().FullName },
+                        { "attempt", attempt + 1 },
+                        { "max_attempts", policy.TransientAttempts }
+                    }));
                 logger.LogDebug(ex, "Transient failure dispatching {MessageId} to {ConsumerEndpoint} (in-process attempt {Attempt}/{TransientAttempts})",
                     outboundMessage.Id, consumer.ConsumerEndpoint, attempt + 1, policy.TransientAttempts);
             }
+            catch (Exception ex)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity?.AddException(ex);
+                MirageQueueDiagnostics.ProcessDuration.Record(Stopwatch.GetElapsedTime(startTs).TotalSeconds, tags);
+                throw;
+            }
         }
+    }
+
+    private static ActivityContext TryParseTraceContext(string? traceParent, string? traceState)
+    {
+        if (string.IsNullOrEmpty(traceParent))
+            return default;
+
+        return ActivityContext.TryParse(traceParent, traceState, out var ctx) ? ctx : default;
     }
 
     private static object GetMessage(BaseMessage baseMessage, Type messageType)

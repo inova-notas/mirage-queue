@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MirageQueue.Postgres.Databases;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MirageQueue.Postgres.Databases.Migrations
 {
     [DbContext(typeof(MirageQueueDbContext))]
-    partial class MirageQueueDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260512014738_AddTraceContextColumns")]
+    partial class AddTraceContextColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -91,9 +94,6 @@ namespace MirageQueue.Postgres.Databases.Migrations
 
                     b.Property<DateTime>("CreateAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ErrorHistory")
-                        .HasColumnType("jsonb");
 
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("text");

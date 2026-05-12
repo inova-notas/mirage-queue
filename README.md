@@ -410,6 +410,80 @@ Each sweep deletes at most `CleanupBatchSize` rows per table — set lower if yo
 
 Each delete uses `FOR UPDATE SKIP LOCKED` on the inner row-pick query, so multiple replicas running the cleanup worker won't block each other — each will claim a different slice of eligible rows per sweep.
 
+## Observability (OpenTelemetry)
+
+MirageQueue emits OpenTelemetry traces and metrics out of the box. Trace context (W3C `traceparent` / `tracestate`) is captured at publish time, persisted on the message row, and read back on dispatch so the consumer span attaches as a child of the publish span — giving a single end-to-end trace from upstream HTTP request through the queue to consumer execution.
+
+### Registering instrumentation
+
+```csharp
+using MirageQueue.Diagnostics;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(t => t
+        .AddMirageQueueInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(m => m
+        .AddMirageQueueInstrumentation()
+        .AddOtlpExporter());
+```
+
+`AddMirageQueueInstrumentation()` is defined on both `TracerProviderBuilder` and `MeterProviderBuilder`. The library itself only uses the BCL `ActivitySource` / `Meter`; you supply the SDK and the exporter.
+
+### Prometheus scraping
+
+Because the metrics flow through the standard OpenTelemetry pipeline, swapping in (or adding) the Prometheus exporter requires no changes to MirageQueue:
+
+```csharp
+// dotnet add package OpenTelemetry.Exporter.Prometheus.AspNetCore --prerelease
+
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m => m
+        .AddMirageQueueInstrumentation()
+        .AddPrometheusExporter());
+
+var app = builder.Build();
+app.MapPrometheusScrapingEndpoint(); // exposes /metrics
+```
+
+You can chain multiple exporters — e.g., `.AddPrometheusExporter().AddOtlpExporter()` — to scrape locally and forward to a collector at the same time. For non-ASP.NET hosts use `OpenTelemetry.Exporter.Prometheus.HttpListener` instead.
+
+### Activity sources and span kinds
+
+| Span | Kind | When |
+|---|---|---|
+| `publish <ContractName>` | Producer | Every `IPublisher.Publish(...)` call |
+| `schedule <ContractName>` | Producer | Every `IPublisher.Schedule(...)` call |
+| `process <ConsumerEndpoint>` | Consumer | Each consumer dispatch, child of stored `traceparent` |
+| `cleanup` | Internal | Retention cleanup sweep — emitted only when at least one row was deleted |
+| `reaper` | Internal | Stuck-Processing reaper sweep — emitted only when at least one row was reclaimed |
+
+Failed dispatches set `Status = Error`, record the exception via `Activity.AddException(ex)`, and the span carries an `exception` event with type / message / stack.
+
+### Metrics
+
+OTel messaging semantic-convention names where they apply; `mirage_queue.*` for queue-specific ones.
+
+| Name | Type | Unit |
+|---|---|---|
+| `messaging.client.published.messages` | Counter | `{message}` |
+| `messaging.client.consumed.messages` | Counter | `{message}` |
+| `messaging.client.operation.duration` | Histogram | `s` |
+| `messaging.process.duration` | Histogram | `s` |
+| `mirage_queue.queue.wait.duration` | Histogram | `s` |
+| `mirage_queue.outbound.retries` | Counter | `{retry}` |
+| `mirage_queue.outbound.dead_lettered` | Counter | `{message}` |
+| `mirage_queue.cleanup.rows_deleted` | Counter | `{row}` (tagged by `table`) |
+| `mirage_queue.reaper.rows_reset` | Counter | `{row}` (tagged by `disposition`) |
+
+All messaging metrics are tagged with `messaging.system="mirage_queue"`, `messaging.operation`, and `messaging.destination.name` (the message contract or consumer endpoint).
+
+### Trace columns and rolling upgrade
+
+Three message tables (`InboundMessage`, `ScheduledInboundMessage`, `OutboundMessage`) gain two nullable columns: `TraceParent varchar(55)` and `TraceState varchar(256)`. Pre-Phase-4 rows have NULL values; consumers see them as "no incoming context" and start a fresh root span. The migration is additive and rolling-upgrade safe — older app instances simply ignore the columns.
+
 ## Dashboard Integration
 
 The MirageQueue Dashboard provides a comprehensive web interface for monitoring and managing your message queues.

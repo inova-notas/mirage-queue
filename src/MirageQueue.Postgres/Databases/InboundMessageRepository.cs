@@ -59,9 +59,9 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
         cmd.Transaction = transaction;
         cmd.CommandText = """
             INSERT INTO mirage_queue."InboundMessage"
-                ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt", "IdempotencyKey")
+                ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt", "IdempotencyKey", "TraceParent", "TraceState")
             VALUES
-                (@id, @status, @content::jsonb, @contract, @createAt, @updateAt, @idempotencyKey)
+                (@id, @status, @content::jsonb, @contract, @createAt, @updateAt, @idempotencyKey, @traceParent, @traceState)
             """;
         cmd.Parameters.Add(new NpgsqlParameter("id", message.Id));
         cmd.Parameters.Add(new NpgsqlParameter("status", (int)message.Status));
@@ -70,6 +70,8 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
         cmd.Parameters.Add(new NpgsqlParameter("createAt", message.CreateAt));
         cmd.Parameters.Add(new NpgsqlParameter("updateAt", (object?)message.UpdateAt ?? DBNull.Value));
         cmd.Parameters.Add(new NpgsqlParameter("idempotencyKey", (object?)message.IdempotencyKey ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceParent", (object?)message.TraceParent ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceState", (object?)message.TraceState ?? DBNull.Value));
 
         await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -122,9 +124,9 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
             if (transaction is not null) insertCmd.Transaction = transaction;
             insertCmd.CommandText = """
                 INSERT INTO mirage_queue."InboundMessage"
-                    ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt", "IdempotencyKey")
+                    ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt", "IdempotencyKey", "TraceParent", "TraceState")
                 VALUES
-                    (@id, @status, @content::jsonb, @contract, @createAt, @updateAt, @idempotencyKey)
+                    (@id, @status, @content::jsonb, @contract, @createAt, @updateAt, @idempotencyKey, @traceParent, @traceState)
                 ON CONFLICT ("IdempotencyKey") WHERE "IdempotencyKey" IS NOT NULL DO NOTHING
                 RETURNING "Id"
                 """;
@@ -135,6 +137,8 @@ public class InboundMessageRepository : BaseRepository<MirageQueueDbContext, Inb
             insertCmd.Parameters.Add(new NpgsqlParameter("createAt", message.CreateAt));
             insertCmd.Parameters.Add(new NpgsqlParameter("updateAt", (object?)message.UpdateAt ?? DBNull.Value));
             insertCmd.Parameters.Add(new NpgsqlParameter("idempotencyKey", message.IdempotencyKey!));
+            insertCmd.Parameters.Add(new NpgsqlParameter("traceParent", (object?)message.TraceParent ?? DBNull.Value));
+            insertCmd.Parameters.Add(new NpgsqlParameter("traceState", (object?)message.TraceState ?? DBNull.Value));
 
             var insertedId = await insertCmd.ExecuteScalarAsync(cancellationToken);
             if (insertedId is Guid newId)

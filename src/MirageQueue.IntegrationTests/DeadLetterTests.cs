@@ -28,7 +28,7 @@ public class DeadLetterTests
         await using var scope = _fixture.Services.CreateAsyncScope();
         var repo = scope.ServiceProvider.GetRequiredService<IOutboundMessageRepository>();
 
-        await repo.MarkDeadLettered(outboundId, "exhausted", "trace", "Some.Exception");
+        await repo.MarkDeadLettered(outboundId, attemptCount: 5, "exhausted", "trace", "Some.Exception");
 
         await using var verify = _fixture.CreateMirageQueueDbContext();
         var row = await verify.Set<OutboundMessage>().AsNoTracking().FirstAsync(x => x.Id == outboundId);
@@ -38,7 +38,7 @@ public class DeadLetterTests
         Assert.Equal("exhausted", row.ErrorMessage);
         Assert.Equal("trace", row.StackTrace);
         Assert.Equal("Some.Exception", row.ExceptionType);
-        Assert.Equal(5, row.AttemptCount); // preserved
+        Assert.Equal(5, row.AttemptCount); // set to the attemptCount passed in
     }
 
     [Fact]

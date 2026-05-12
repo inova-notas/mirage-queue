@@ -12,6 +12,7 @@ public class OutboundMessage : BaseMessage
     public int AttemptCount { get; set; }
     public DateTime? NextRetryAt { get; set; }
     public DateTime? ProcessingStartedAt { get; set; }
+    public List<OutboundMessageError>? ErrorHistory { get; set; }
 
     public void ChangeStatus(OutboundMessageStatus status)
     {

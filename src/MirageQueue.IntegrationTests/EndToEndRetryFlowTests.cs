@@ -61,6 +61,19 @@ public class EndToEndRetryFlowTests
         Assert.Equal(OutboundMessageStatus.DeadLettered, final.Status);
         Assert.Equal("transient #3 exhausts", final.ErrorMessage);
         Assert.Null(final.ProcessingStartedAt);
+
+        // Three attempts produced AttemptCount=3 on the column AND three entries in history.
+        // Pre-fix, MarkDeadLettered didn't update AttemptCount, leaving it stuck at 2 — that
+        // off-by-one is what this assertion guards against.
+        Assert.Equal(3, final.AttemptCount);
+
+        Assert.NotNull(final.ErrorHistory);
+        Assert.Equal(3, final.ErrorHistory!.Count);
+        Assert.Equal(new[] { 1, 2, 3 }, final.ErrorHistory.Select(e => e.Attempt).ToArray());
+        Assert.Equal(new[] { "transient #1", "transient #2", "transient #3 exhausts" },
+                     final.ErrorHistory.Select(e => e.Message).ToArray());
+        Assert.All(final.ErrorHistory, e => Assert.Equal("Dispatch", e.Source));
+        Assert.All(final.ErrorHistory, e => Assert.Equal(typeof(TimeoutException).FullName, e.ExceptionType));
     }
 
     [Fact]

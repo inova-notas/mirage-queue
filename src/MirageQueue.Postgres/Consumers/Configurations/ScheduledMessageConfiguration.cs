@@ -18,6 +18,14 @@ public class ScheduledMessageConfiguration : IEntityTypeConfiguration<ScheduledI
         builder.Property(x => x.IdempotencyKey)
             .HasMaxLength(200);
 
+        builder.Property(x => x.TraceParent)
+            .HasMaxLength(55)
+            .IsRequired(false);
+
+        builder.Property(x => x.TraceState)
+            .HasMaxLength(256)
+            .IsRequired(false);
+
         builder.HasIndex(x => x.IdempotencyKey)
             .IsUnique()
             .HasFilter("\"IdempotencyKey\" IS NOT NULL");

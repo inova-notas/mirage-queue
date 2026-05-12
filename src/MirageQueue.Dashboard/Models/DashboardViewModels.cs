@@ -1,3 +1,5 @@
+using MirageQueue.Messages.Entities;
+
 namespace MirageQueue.Dashboard.Models;
 
 public class DashboardStatsViewModel
@@ -12,6 +14,7 @@ public class DashboardStatsViewModel
     public int ProcessingOutboundMessages { get; set; }
     public int ProcessedOutboundMessages { get; set; }
     public int FailedOutboundMessages { get; set; }
+    public int DeadLetteredOutboundMessages { get; set; }
     
     public int TotalScheduledMessages { get; set; }
     public int WaitingScheduledMessages { get; set; }
@@ -29,6 +32,11 @@ public class MessageSummaryViewModel
     public string MessageType { get; set; } = string.Empty; // "Inbound", "Outbound", "Scheduled"
     public string? ConsumerEndpoint { get; set; } // For OutboundMessage
     public DateTime? ExecuteAt { get; set; } // For ScheduledMessage
+
+    // Outbound-only retry-state fields (defaults are fine for inbound/scheduled rows).
+    public int AttemptCount { get; set; }
+    public DateTime? NextRetryAt { get; set; }
+    public string? ErrorMessage { get; set; }
 }
 
 public class MessagesListViewModel
@@ -63,4 +71,10 @@ public class MessageDetailViewModel
     public string? ErrorMessage { get; set; }
     public string? StackTrace { get; set; }
     public string? ExceptionType { get; set; }
+
+    // Outbound retry-state fields, populated only for outbound messages.
+    public int AttemptCount { get; set; }
+    public DateTime? NextRetryAt { get; set; }
+    public DateTime? ProcessingStartedAt { get; set; }
+    public IReadOnlyList<OutboundMessageError> ErrorHistory { get; set; } = Array.Empty<OutboundMessageError>();
 }

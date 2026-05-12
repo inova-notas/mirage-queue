@@ -7,4 +7,6 @@ public abstract class BaseMessage
     public required string MessageContract { get; set; }
     public required DateTime CreateAt { get; set; }
     public DateTime? UpdateAt { get; set; }
+    public string? TraceParent { get; set; }
+    public string? TraceState { get; set; }
 }

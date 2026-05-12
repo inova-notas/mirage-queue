@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MirageQueue.Consumers;
 using MirageQueue.IntegrationTests.Fixtures;
 using MirageQueue.Messages.Repositories;
 using MirageQueue.Outbox;
@@ -121,6 +122,11 @@ public class PostgresFixture : IAsyncLifetime
         services.AddScoped<IInboundMessageRepository, InboundMessageRepository>();
         services.AddScoped<IOutboundMessageRepository, OutboundMessageRepository>();
         services.AddScoped<IScheduledMessageRepository, ScheduledMessageRepository>();
+
+        // TraceContinuityTests needs a real consumer that DI can resolve when the dispatcher
+        // runs it. Register the consumer type and its DispatcherContext entry once per fixture.
+        services.AddScoped<TraceTestConsumer>();
+        DispatcherContext.AddDispatchConsumer(typeof(TraceTestConsumer));
 
         // Sample business DbContext + outbox.
         services.AddDbContext<SampleBusinessDbContext>(o => o.UseNpgsql(ConnectionString));

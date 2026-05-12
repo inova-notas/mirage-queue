@@ -57,9 +57,11 @@ public class ProcessOutboundMessagesWorkerTests
         outboundRepo.Verify(x => x.UpdateMessageStatus(
             messageId,
             OutboundMessageStatus.Failed,
+            1,
             exception.Message,
             exception.ToString(),
             exception.GetType().FullName,
+            "Dispatch",
             null), Times.Once);
     }
 

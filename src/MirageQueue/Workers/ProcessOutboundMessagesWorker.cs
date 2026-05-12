@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MirageQueue.Consumers;
 using MirageQueue.Consumers.Abstractions;
+using MirageQueue.Diagnostics;
 using MirageQueue.Messages.Entities;
 using MirageQueue.Messages.Repositories;
 using MirageQueue.Retry;
@@ -83,20 +85,28 @@ public class ProcessOutboundMessagesWorker : BackgroundService
         var (policy, hasExplicitPolicy) = RetryPolicy.Resolve(message.ConsumerEndpoint);
         var newAttempts = message.AttemptCount + 1;
 
+        var tags = new TagList
+        {
+            { MirageQueueDiagnostics.AttrMessagingSystem, MirageQueueDiagnostics.MessagingSystemValue },
+            { MirageQueueDiagnostics.AttrMessagingDestination, message.ConsumerEndpoint }
+        };
+
         if (newAttempts < policy.MaxAttempts)
         {
             var nextRetryAt = DateTime.UtcNow + policy.Backoff.ComputeDelay(newAttempts);
             await outboundRepository.MarkForRetry(message.Id, newAttempts, nextRetryAt, errorMessage, stackTrace, exceptionType);
+            MirageQueueDiagnostics.RetryCounter.Add(1, tags);
             return;
         }
 
         if (hasExplicitPolicy)
         {
-            await outboundRepository.MarkDeadLettered(message.Id, errorMessage, stackTrace, exceptionType);
+            await outboundRepository.MarkDeadLettered(message.Id, newAttempts, errorMessage, stackTrace, exceptionType);
+            MirageQueueDiagnostics.DeadLetterCounter.Add(1, tags);
         }
         else
         {
-            await outboundRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Failed, errorMessage, stackTrace, exceptionType);
+            await outboundRepository.UpdateMessageStatus(message.Id, OutboundMessageStatus.Failed, newAttempts, errorMessage, stackTrace, exceptionType);
         }
     }
 }

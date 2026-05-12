@@ -1,18 +1,59 @@
 @ExampleApi_HostAddress = https://localhost:7209
 
+### Publish a single TestMessage (basic publisher, no transaction)
 POST {{ExampleApi_HostAddress}}/publish
 Accept: application/json
 
 ###
 
-
+### Schedule a TestMessage for ~3 seconds in the future
 POST {{ExampleApi_HostAddress}}/schedule
 Accept: application/json
 
 ###
+
+### Publish to the failing consumer. Phase 3 retry policy: 3 attempts with exponential backoff,
+### then the outbound row is moved to DeadLettered (visible in the dashboard).
 POST {{ExampleApi_HostAddress}}/publish-failing
 Accept: application/json
 
 ###
+
+### Phase 2: idempotent publish. Repeat this request with the same `key` and the response
+### will show IsDuplicate=true — only one inbound row exists.
+POST {{ExampleApi_HostAddress}}/publish-idempotent?key=demo-key-1
+Accept: application/json
+
+###
+
+### Same key again — IsDuplicate should be true.
+POST {{ExampleApi_HostAddress}}/publish-idempotent?key=demo-key-1
+Accept: application/json
+
+###
+
+### Phase 1: transactional outbox. Writes a BusinessEntity row AND publishes a TestMessage
+### inside one Postgres transaction via IDbContextOutbox<BusinessDbContext>.
+POST {{ExampleApi_HostAddress}}/publish-outbox?name=alice
+Accept: application/json
+
+###
+
+### Burst publish — exercises the outbound channel + worker pool. Pressure consumer adds
+### artificial delay so the queue actually backs up.
 POST {{ExampleApi_HostAddress}}/pressure-test?count=5000&parallelism=200
 Accept: application/json
+
+###
+
+### Phase 4: Prometheus scrape. After publishing/processing some messages you should see
+### messaging.client.published.messages, messaging.process.duration,
+### mirage_queue.queue.wait.duration, mirage_queue.outbound.retries, etc.
+GET {{ExampleApi_HostAddress}}/metrics
+Accept: text/plain
+
+###
+
+### Phase 4: dashboard UI (open in a browser, not via REST client).
+GET {{ExampleApi_HostAddress}}/mirage-dashboard
+Accept: text/html

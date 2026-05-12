@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MirageQueue.Diagnostics;
 using MirageQueue.Messages.Repositories;
 
 namespace MirageQueue.Workers;
@@ -57,8 +59,20 @@ public abstract class MessageCleanupWorker(
         var inboundDeleted = await inbound.DeleteQueuedOlderThanWithNoActiveOutbound(cutoff, configuration.CleanupBatchSize);
         var scheduledDeleted = await scheduled.DeleteQueuedOlderThan(cutoff, configuration.CleanupBatchSize);
 
-        if (outboundDeleted + inboundDeleted + scheduledDeleted > 0)
+        var totalDeleted = outboundDeleted + inboundDeleted + scheduledDeleted;
+        if (totalDeleted > 0)
         {
+            // Gated span — empty sweeps don't emit so the trace backend isn't spammed.
+            using var activity = MirageQueueDiagnostics.ActivitySource.StartActivity(
+                MirageQueueDiagnostics.OperationCleanup, ActivityKind.Internal);
+            activity?.SetTag("mirage_queue.cleanup.outbound_deleted", outboundDeleted);
+            activity?.SetTag("mirage_queue.cleanup.inbound_deleted", inboundDeleted);
+            activity?.SetTag("mirage_queue.cleanup.scheduled_deleted", scheduledDeleted);
+
+            MirageQueueDiagnostics.CleanupRowsDeleted.Add(outboundDeleted, new TagList { { "table", "OutboundMessage" } });
+            MirageQueueDiagnostics.CleanupRowsDeleted.Add(inboundDeleted, new TagList { { "table", "InboundMessage" } });
+            MirageQueueDiagnostics.CleanupRowsDeleted.Add(scheduledDeleted, new TagList { { "table", "ScheduledInboundMessage" } });
+
             logger.LogInformation("Cleanup swept: outbound={Outbound}, inbound={Inbound}, scheduled={Scheduled}",
                 outboundDeleted, inboundDeleted, scheduledDeleted);
         }

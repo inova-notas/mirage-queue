@@ -14,7 +14,9 @@ internal static class PostgresFixtureSeedExtensions
     public static async Task<Guid> SeedInboundAsync(
         this PostgresFixture fixture,
         InboundMessageStatus status = InboundMessageStatus.Queued,
-        DateTime? updateAt = null)
+        DateTime? updateAt = null,
+        string? traceParent = null,
+        string? traceState = null)
     {
         var id = Guid.NewGuid();
         await using var conn = new NpgsqlConnection(fixture.ConnectionString);
@@ -22,12 +24,14 @@ internal static class PostgresFixtureSeedExtensions
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO mirage_queue."InboundMessage"
-                ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt")
-            VALUES (@id, @status, '{}'::jsonb, 'X', now(), @updateAt)
+                ("Id", "Status", "Content", "MessageContract", "CreateAt", "UpdateAt", "TraceParent", "TraceState")
+            VALUES (@id, @status, '{}'::jsonb, 'X', now(), @updateAt, @traceParent, @traceState)
             """;
         cmd.Parameters.Add(new NpgsqlParameter("id", id));
         cmd.Parameters.Add(new NpgsqlParameter("status", (int)status));
         cmd.Parameters.Add(new NpgsqlParameter("updateAt", (object?)updateAt ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceParent", (object?)traceParent ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceState", (object?)traceState ?? DBNull.Value));
         await cmd.ExecuteNonQueryAsync();
         return id;
     }
@@ -45,7 +49,9 @@ internal static class PostgresFixtureSeedExtensions
         DateTime? nextRetryAt = null,
         DateTime? processingStartedAt = null,
         DateTime? updateAt = null,
-        int attemptCount = 0)
+        int attemptCount = 0,
+        string? traceParent = null,
+        string? traceState = null)
     {
         var id = Guid.NewGuid();
         await using var conn = new NpgsqlConnection(fixture.ConnectionString);
@@ -55,10 +61,12 @@ internal static class PostgresFixtureSeedExtensions
             INSERT INTO mirage_queue."OutboundMessage"
                 ("Id", "Status", "ConsumerEndpoint", "InboundMessageId",
                  "Content", "MessageContract", "CreateAt", "UpdateAt",
-                 "AttemptCount", "NextRetryAt", "ProcessingStartedAt")
+                 "AttemptCount", "NextRetryAt", "ProcessingStartedAt",
+                 "TraceParent", "TraceState")
             VALUES (@id, @status, @endpoint, @inboundId,
                     '{}'::jsonb, 'X', now(), @updateAt,
-                    @attempts, @nextRetry, @processingStarted)
+                    @attempts, @nextRetry, @processingStarted,
+                    @traceParent, @traceState)
             """;
         cmd.Parameters.Add(new NpgsqlParameter("id", id));
         cmd.Parameters.Add(new NpgsqlParameter("status", (int)status));
@@ -68,6 +76,8 @@ internal static class PostgresFixtureSeedExtensions
         cmd.Parameters.Add(new NpgsqlParameter("attempts", attemptCount));
         cmd.Parameters.Add(new NpgsqlParameter("nextRetry", (object?)nextRetryAt ?? DBNull.Value));
         cmd.Parameters.Add(new NpgsqlParameter("processingStarted", (object?)processingStartedAt ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceParent", (object?)traceParent ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceState", (object?)traceState ?? DBNull.Value));
         await cmd.ExecuteNonQueryAsync();
         return id;
     }
@@ -79,7 +89,9 @@ internal static class PostgresFixtureSeedExtensions
         this PostgresFixture fixture,
         ScheduledInboundMessageStatus status,
         DateTime? updateAt = null,
-        DateTime? executeAt = null)
+        DateTime? executeAt = null,
+        string? traceParent = null,
+        string? traceState = null)
     {
         var id = Guid.NewGuid();
         await using var conn = new NpgsqlConnection(fixture.ConnectionString);
@@ -87,13 +99,15 @@ internal static class PostgresFixtureSeedExtensions
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO mirage_queue."ScheduledInboundMessage"
-                ("Id", "Status", "ExecuteAt", "Content", "MessageContract", "CreateAt", "UpdateAt")
-            VALUES (@id, @status, @executeAt, '{}'::jsonb, 'X', now(), @updateAt)
+                ("Id", "Status", "ExecuteAt", "Content", "MessageContract", "CreateAt", "UpdateAt", "TraceParent", "TraceState")
+            VALUES (@id, @status, @executeAt, '{}'::jsonb, 'X', now(), @updateAt, @traceParent, @traceState)
             """;
         cmd.Parameters.Add(new NpgsqlParameter("id", id));
         cmd.Parameters.Add(new NpgsqlParameter("status", (int)status));
         cmd.Parameters.Add(new NpgsqlParameter("executeAt", (object?)executeAt ?? DateTime.UtcNow));
         cmd.Parameters.Add(new NpgsqlParameter("updateAt", (object?)updateAt ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceParent", (object?)traceParent ?? DBNull.Value));
+        cmd.Parameters.Add(new NpgsqlParameter("traceState", (object?)traceState ?? DBNull.Value));
         await cmd.ExecuteNonQueryAsync();
         return id;
     }

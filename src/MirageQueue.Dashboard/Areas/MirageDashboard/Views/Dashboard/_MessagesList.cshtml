@@ -15,6 +15,8 @@
                             @if (Model.MessageType == "Outbound")
                             {
                                 <th>Endpoint</th>
+                                <th>Attempts</th>
+                                <th>Last Error</th>
                             }
                             @if (Model.MessageType == "Scheduled")
                             {
@@ -38,11 +40,12 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="status-badge badge 
-                                        @(message.Status.Contains("New") ? "bg-info" : 
-                                          message.Status.Contains("Processing") || message.Status.Contains("Queued") ? "bg-warning" :
+                                    <span class="status-badge badge
+                                        @(message.Status == "DeadLettered" ? "bg-dark" :
+                                          message.Status.Contains("Failed") ? "bg-danger" :
                                           message.Status.Contains("Processed") ? "bg-success" :
-                                          message.Status.Contains("Failed") ? "bg-danger" : "bg-secondary")">
+                                          message.Status.Contains("Processing") || message.Status.Contains("Queued") ? "bg-warning" :
+                                          message.Status.Contains("New") ? "bg-info" : "bg-secondary")">
                                         @message.Status
                                     </span>
                                 </td>
@@ -56,6 +59,32 @@
                                 {
                                     <td>
                                         <small>@(message.ConsumerEndpoint ?? "-")</small>
+                                    </td>
+                                    <td>
+                                        @{
+                                            var attemptBadge = message.AttemptCount == 0 ? "bg-secondary"
+                                                : message.Status == "DeadLettered" ? "bg-dark"
+                                                : message.Status == "Failed" ? "bg-danger"
+                                                : "bg-warning";
+                                        }
+                                        <span class="badge @attemptBadge" title="@(message.NextRetryAt.HasValue ? $"Next retry: {message.NextRetryAt:MM/dd HH:mm:ss}" : "")">
+                                            @message.AttemptCount
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(message.ErrorMessage))
+                                        {
+                                            <small class="text-danger text-truncate d-inline-block"
+                                                   style="max-width: 240px;"
+                                                   data-bs-toggle="tooltip"
+                                                   data-bs-title="@message.ErrorMessage">
+                                                @message.ErrorMessage[..Math.Min(message.ErrorMessage.Length, 60)]@(message.ErrorMessage.Length > 60 ? "..." : "")
+                                            </small>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">-</small>
+                                        }
                                     </td>
                                 }
                                 @if (Model.MessageType == "Scheduled")
