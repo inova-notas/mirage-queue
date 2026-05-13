@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="2.5.3"></a>
+## [2.5.3](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.5.3) (2026-05-13)
+
 <a name="2.5.2"></a>
 ## [2.5.2](https://www.github.com/inova-notas/mirage-queue/releases/tag/v2.5.2) (2026-05-12)
 
