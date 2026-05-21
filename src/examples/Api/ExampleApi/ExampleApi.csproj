@@ -16,9 +16,9 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
-        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.13.1" />
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
         <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.13.1-beta.1" />
-        <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.13.1" />
+        <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.15.3" />
     </ItemGroup>
 
     <ItemGroup>
